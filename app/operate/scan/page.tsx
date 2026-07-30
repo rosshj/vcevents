@@ -222,7 +222,7 @@ function ScannerScreen() {
       {/* Top bar */}
       <div className="z-10 flex items-center gap-2 px-3 pb-2 pt-[max(env(safe-area-inset-top),0.75rem)]">
         <button
-          onClick={() => router.push("/operate")}
+          onClick={() => router.push(`/events/${event.id}`)}
           className="rounded-full bg-white/10 p-2 hover:bg-white/20"
           aria-label="Exit scanner"
         >
@@ -243,7 +243,7 @@ function ScannerScreen() {
           <Keyboard className="h-5 w-5" />
         </button>
         <Link
-          href="/operate/tally"
+          href={`/events/${event.id}`}
           className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-sm font-bold tabular-nums hover:bg-white/20"
         >
           <ListChecks className="h-4 w-4" />

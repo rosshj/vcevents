@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,11 +11,13 @@ import {
   Sparkles,
   Trophy,
   Users,
+  X,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { repo } from "@/lib/repo";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/types";
+import type { Role, SchoolEvent } from "@/lib/types";
 
 interface NavItem {
   href: string;
@@ -32,19 +35,61 @@ function navFor(role: Role): NavItem[] {
       ];
     case "house_director":
       return [
-        { href: "/operate", label: "Check-in", icon: ScanLine },
         { href: "/events", label: "Events", icon: CalendarDays },
-        { href: "/roster", label: "Roster", icon: Users },
-        { href: "/reports/uninvolved", label: "Report", icon: ClipboardList },
+        { href: "/students", label: "Students", icon: Users },
+        { href: "/reports", label: "Reports", icon: ClipboardList },
         { href: "/leaderboard", label: "Houses", icon: Trophy },
       ];
     default:
       return [
-        { href: "/operate", label: "Check-in", icon: ScanLine },
-        { href: "/roster", label: "Roster", icon: Users },
+        { href: "/events", label: "Events", icon: CalendarDays },
+        { href: "/students", label: "Students", icon: Users },
         { href: "/leaderboard", label: "Houses", icon: Trophy },
       ];
   }
+}
+
+/** "You're operating X" — one tap back to the scanner from anywhere. */
+function OperatingPill() {
+  const { ready, session, setActiveEventId } = useSession();
+  const [event, setEvent] = useState<SchoolEvent | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const lookup =
+      !ready || !session.activeEventId || session.role === "student"
+        ? Promise.resolve(null)
+        : repo.getEvent(session.activeEventId);
+    void lookup.then((e) => {
+      if (!cancelled) setEvent(e);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, session.activeEventId, session.role]);
+
+  if (!event) return null;
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.9rem)] z-40 flex justify-center px-4">
+      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full bg-stone-900 py-1 pl-3 pr-1 text-white shadow-float">
+        <Link
+          href="/operate/scan"
+          className="flex min-w-0 items-center gap-2 py-1 text-xs font-semibold"
+        >
+          <ScanLine className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Scanning · {event.name}</span>
+        </Link>
+        <button
+          onClick={() => setActiveEventId(null)}
+          aria-label="Stop operating this event"
+          className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function initialsOf(name: string): string {
@@ -145,6 +190,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </div>
       </nav>
+
+      <OperatingPill />
     </div>
   );
 }

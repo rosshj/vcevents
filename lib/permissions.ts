@@ -9,8 +9,11 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const isStaff = (r: Role) => r !== "student";
 
-/** Run check-in screens (scanner, manual, tally). */
+/** Run check-in screens (scanner, manual). */
 export const canOperate = isStaff;
+
+/** Browse events and event detail. All staff. */
+export const canViewEvents = isStaff;
 
 /** Create/edit events. Director only. */
 export const canManageEvents = (r: Role) => r === "house_director";
@@ -25,8 +28,8 @@ export const canUndoCheckin = (r: Role) =>
 /** Add a student manually (marked pending). All staff. */
 export const canAddStudents = isStaff;
 
-/** View/search the full roster. All staff. */
-export const canViewRoster = isStaff;
+/** View/search the full student list. All staff. */
+export const canViewStudents = isStaff;
 
 /** CSV import. Director only. */
 export const canImportCsv = (r: Role) => r === "house_director";

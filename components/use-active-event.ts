@@ -18,14 +18,14 @@ export function useActiveEvent(): SchoolEvent | null {
   useEffect(() => {
     if (!ready) return;
     if (!session.activeEventId) {
-      router.replace("/operate");
+      router.replace("/events");
       return;
     }
     let cancelled = false;
     void repo.getEvent(session.activeEventId).then((e) => {
       if (cancelled) return;
       if (!e) {
-        router.replace("/operate");
+        router.replace("/events");
       } else {
         setEvent(e);
       }

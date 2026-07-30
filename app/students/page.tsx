@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileUp, UserPlus, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, FileUp, UserPlus, X } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
-import { canImportCsv, canViewRoster } from "@/lib/permissions";
+import { canImportCsv, canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { GRADES } from "@/lib/config";
 import type { CsvImportResult, Student } from "@/lib/types";
@@ -156,7 +157,7 @@ function CsvImportCard({ onDone }: { onDone: () => void }) {
   );
 }
 
-function RosterScreen() {
+function StudentsScreen() {
   const { session, houseById } = useSession();
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
@@ -187,7 +188,7 @@ function RosterScreen() {
     <Screen className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">Roster</h1>
+          <h1 className="text-xl font-bold text-stone-900">Students</h1>
           <p className="text-sm text-stone-500">{total} students</p>
         </div>
         <div className="flex gap-1.5">
@@ -270,9 +271,10 @@ function RosterScreen() {
             {shown.map((s) => {
               const house = houseById(s.houseId);
               return (
-                <div
+                <Link
                   key={s.id}
-                  className="flex items-center gap-3 border-b border-stone-100 px-4 py-2.5 last:border-0"
+                  href={`/students/${s.id}`}
+                  className="flex items-center gap-3 border-b border-stone-100 px-4 py-2.5 last:border-0 hover:bg-stone-50"
                 >
                   <span
                     className="h-3 w-3 shrink-0 rounded-full"
@@ -291,7 +293,8 @@ function RosterScreen() {
                       Gr. {s.grade} · #{s.studentNumber} · {house?.name}
                     </p>
                   </div>
-                </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
+                </Link>
               );
             })}
           </div>
@@ -301,10 +304,10 @@ function RosterScreen() {
   );
 }
 
-export default function RosterPage() {
+export default function StudentsPage() {
   return (
-    <Guard allow={canViewRoster}>
-      <RosterScreen />
+    <Guard allow={canViewStudents}>
+      <StudentsScreen />
     </Guard>
   );
 }

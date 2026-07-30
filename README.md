@@ -61,12 +61,18 @@ Role gates mirror production:
 
 - **Student**: `/pass` (rotating QR, today's event, offline chip),
   `/points` (my check-ins, house-contribution framing), `/leaderboard`.
-- **Operator**: `/operate` (event picker), `/operate/scan` (camera scanner
-  with green/amber/red full-screen results, typed/wedge-scan fallback, live
-  tally chip), `/operate/manual` (search + grade chips + one-tap check-in +
-  add student), `/operate/tally` (list with per-house counts and undo).
-- **Director**: `/events` (create/edit, tier, points pool),
-  `/events/[id]/award` (check-in breakdown by house as the input; points are
-  always human-decided; note required), `/roster` (search, pending-flagged
-  manual adds, CSV import `firstName,lastName,grade,house,studentNumber`),
-  `/reports/uninvolved` (zero check-ins this year, grouped by grade).
+- **Staff — Events is the hub**: `/events` (list; directors create here) →
+  `/events/[id]` (attendance count + by-house breakdown, check-in list with
+  role-gated undo, Scan/Manual actions; directors also Award/Edit).
+  `/operate/scan` and `/operate/manual` are the operating modes launched
+  from an event; a persistent "Scanning · <event>" pill gets you back to
+  the scanner from anywhere.
+- **Staff — Students**: `/students` (search, pending-flagged manual adds,
+  director-only CSV import `firstName,lastName,grade,house,studentNumber`)
+  → `/students/[id]` (identity, check-in history, one-tap check-in to the
+  event being operated).
+- **Director — Reports**: `/reports` (participation rate overall, by grade
+  and house, per-event attendance) with drill-downs to
+  `/reports/uninvolved` and `/reports/one-and-done`.
+- `/events/[id]/award`: check-in breakdown as the input; points are always
+  human-decided; note required.

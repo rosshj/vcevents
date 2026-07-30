@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ClipboardList } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
 import { canViewReports } from "@/lib/permissions";
@@ -39,11 +40,22 @@ function UninvolvedScreen() {
 
   return (
     <Screen className="space-y-4" wide>
-      <div>
-        <h1 className="text-xl font-bold text-stone-900">Uninvolved students</h1>
-        <p className="text-sm text-stone-500">
-          No check-ins to any event this year — worth a nudge.
-        </p>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/reports"
+          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
+          aria-label="Back to reports"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div>
+          <h1 className="text-xl font-bold text-stone-900">
+            Uninvolved students
+          </h1>
+          <p className="text-sm text-stone-500">
+            No check-ins to any event this year — worth a nudge.
+          </p>
+        </div>
       </div>
 
       {!students ? (
@@ -93,7 +105,12 @@ function UninvolvedScreen() {
                           className="border-b border-stone-100 last:border-0"
                         >
                           <td className="px-3 py-2 font-medium text-stone-900">
-                            {s.lastName}, {s.firstName}
+                            <Link
+                              href={`/students/${s.id}`}
+                              className="hover:underline"
+                            >
+                              {s.lastName}, {s.firstName}
+                            </Link>
                           </td>
                           <td className="px-3 py-2 tabular-nums text-stone-600">
                             {s.studentNumber}

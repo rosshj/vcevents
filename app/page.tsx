@@ -11,7 +11,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!ready) return;
-    router.replace(session.role === "student" ? "/pass" : "/operate");
+    router.replace(session.role === "student" ? "/pass" : "/events");
   }, [ready, session.role, router]);
 
   return (
