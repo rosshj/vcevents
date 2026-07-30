@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FileUp, UserPlus, X } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
@@ -163,19 +163,23 @@ function RosterScreen() {
   const [results, setResults] = useState<Student[] | null>(null);
   const [total, setTotal] = useState(0);
   const [panel, setPanel] = useState<"add" | "csv" | null>(null);
-
-  const load = useCallback(async () => {
-    const [r, all] = await Promise.all([
-      repo.searchStudents(query, grade ?? undefined),
-      repo.listStudents(),
-    ]);
-    setResults(r);
-    setTotal(all.length);
-  }, [query, grade]);
+  const [version, setVersion] = useState(0);
+  const reload = () => setVersion((v) => v + 1);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void Promise.all([
+      repo.searchStudents(query, grade ?? undefined),
+      repo.listStudents(),
+    ]).then(([r, all]) => {
+      if (cancelled) return;
+      setResults(r);
+      setTotal(all.length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, grade, version]);
 
   const shown = results?.slice(0, RESULT_CAP) ?? [];
 
@@ -212,11 +216,11 @@ function RosterScreen() {
         <AddStudentCard
           onDone={() => {
             setPanel(null);
-            void load();
+            reload();
           }}
         />
       )}
-      {panel === "csv" && <CsvImportCard onDone={() => void load()} />}
+      {panel === "csv" && <CsvImportCard onDone={reload} />}
 
       <Input
         placeholder="Search name or student number…"

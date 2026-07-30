@@ -140,16 +140,14 @@ function ManualCheckin() {
   }, [event]);
 
   useEffect(() => {
-    if (!query.trim() && grade === null) {
-      setResults([]);
-      return;
-    }
     let cancelled = false;
-    void repo
-      .searchStudents(query, grade ?? undefined)
-      .then((r) => {
-        if (!cancelled) setResults(r);
-      });
+    const search =
+      !query.trim() && grade === null
+        ? Promise.resolve([])
+        : repo.searchStudents(query, grade ?? undefined);
+    void search.then((r) => {
+      if (!cancelled) setResults(r);
+    });
     return () => {
       cancelled = true;
     };

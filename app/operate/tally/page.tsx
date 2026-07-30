@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Keyboard, QrCode, ScanBarcode, Undo2 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
@@ -28,26 +28,29 @@ function TallyScreen() {
   const event = useActiveEvent();
   const { session, houses, houseById } = useSession();
   const [rows, setRows] = useState<Row[] | null>(null);
-
-  const load = useCallback(async () => {
-    if (!event) return;
-    const checkins = await repo.listCheckins(event.id);
-    const withStudents = await Promise.all(
-      checkins.map(async (checkin) => ({
-        checkin,
-        student: await repo.getStudent(checkin.studentId),
-      }))
-    );
-    setRows(withStudents);
-  }, [event]);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!event) return;
+    let cancelled = false;
+    void (async () => {
+      const checkins = await repo.listCheckins(event.id);
+      const withStudents = await Promise.all(
+        checkins.map(async (checkin) => ({
+          checkin,
+          student: await repo.getStudent(checkin.studentId),
+        }))
+      );
+      if (!cancelled) setRows(withStudents);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [event, version]);
 
   const undo = async (checkinId: string) => {
     await repo.undoCheckin(checkinId);
-    await load();
+    setVersion((v) => v + 1);
   };
 
   if (!event) return null;

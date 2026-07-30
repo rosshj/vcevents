@@ -38,19 +38,28 @@ function StudentPicker({
   const { houseById } = useSession();
 
   useEffect(() => {
-    if (!value) {
-      setSelected(null);
-      return;
-    }
-    void repo.getStudent(value).then(setSelected);
+    let cancelled = false;
+    const lookup = value ? repo.getStudent(value) : Promise.resolve(null);
+    void lookup.then((s) => {
+      if (!cancelled) setSelected(s);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [value]);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
-    }
-    void repo.searchStudents(query).then((r) => setResults(r.slice(0, 6)));
+    let cancelled = false;
+    const search =
+      query.trim().length < 2
+        ? Promise.resolve([])
+        : repo.searchStudents(query).then((r) => r.slice(0, 6));
+    void search.then((r) => {
+      if (!cancelled) setResults(r);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [query]);
 
   const house = selected ? houseById(selected.houseId) : undefined;

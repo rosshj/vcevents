@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarPlus, Pencil, Trophy } from "lucide-react";
 import { Guard, Screen } from "@/components/guard";
@@ -106,44 +106,51 @@ function EventForm({
   );
 }
 
+async function fetchEventRows(): Promise<EventRow[]> {
+  const events = await repo.listEvents();
+  const withMeta = await Promise.all(
+    events.map(async (event) => {
+      const awards = await repo.listAwards(event.id);
+      return {
+        event,
+        checkins: await repo.countCheckins(event.id),
+        awarded: awards.reduce((sum, a) => sum + a.points, 0),
+      };
+    })
+  );
+  // Today first, then upcoming soonest-first, then past newest-first.
+  const rank = { today: 0, future: 1, past: 2 } as const;
+  withMeta.sort((a, b) => {
+    const ra = rank[eventTiming(a.event.date)];
+    const rb = rank[eventTiming(b.event.date)];
+    if (ra !== rb) return ra - rb;
+    return ra === 2
+      ? b.event.date.localeCompare(a.event.date)
+      : a.event.date.localeCompare(b.event.date);
+  });
+  return withMeta;
+}
+
 function EventsScreen() {
   const [rows, setRows] = useState<EventRow[] | null>(null);
   const [editing, setEditing] = useState<SchoolEvent | null>(null);
   const [creating, setCreating] = useState(false);
-
-  const load = useCallback(async () => {
-    const events = await repo.listEvents();
-    const withMeta = await Promise.all(
-      events.map(async (event) => {
-        const awards = await repo.listAwards(event.id);
-        return {
-          event,
-          checkins: await repo.countCheckins(event.id),
-          awarded: awards.reduce((sum, a) => sum + a.points, 0),
-        };
-      })
-    );
-    // Today first, then upcoming soonest-first, then past newest-first.
-    const rank = { today: 0, future: 1, past: 2 } as const;
-    withMeta.sort((a, b) => {
-      const ra = rank[eventTiming(a.event.date)];
-      const rb = rank[eventTiming(b.event.date)];
-      if (ra !== rb) return ra - rb;
-      return ra === 2
-        ? b.event.date.localeCompare(a.event.date)
-        : a.event.date.localeCompare(b.event.date);
-    });
-    setRows(withMeta);
-  }, []);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void fetchEventRows().then((r) => {
+      if (!cancelled) setRows(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [version]);
 
   const closeForm = () => {
     setEditing(null);
     setCreating(false);
-    void load();
+    setVersion((v) => v + 1);
   };
 
   return (

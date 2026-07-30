@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VC House Points — UX Prototype
 
-## Getting Started
+A local-only prototype of the Vancouver College house points check-in app.
+Students check in to school events (rotating QR pass, ID-card barcode scan, or
+manual lookup), staff award points to houses per event, and everyone watches
+the house leaderboard.
 
-First, run the development server:
+**This phase is fake-data only**: no Supabase, no network, no real auth.
+Everything runs from seeded data persisted in the browser's localStorage. The
+goal is to nail the flows and screens before wiring anything real.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 on a phone-sized viewport. First load seeds
+4 houses, ~600 students, 5 events (2 past with check-ins and point awards,
+1 today, 2 future), and a handful of staff operators.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Mock auth
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The chip in the top-right corner opens **/dev**, where you can:
 
-## Learn More
+- Switch between the four roles (House Director, Community Teacher, House
+  Executive, Student) and pick *which* student or staff member you are.
+  The selection persists across reloads.
+- Render any student's **Code 128 ID-card barcode** and current **pass QR**
+  to point a second device's scanner at.
+- **Reset data** back to the seeded state.
 
-To learn more about Next.js, take a look at the following resources:
+Role gates mirror production:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| | Director | Teacher | Executive | Student |
+|---|---|---|---|---|
+| Check-in screens (scan / manual / tally) | ✓ | ✓ | ✓ | – |
+| Undo a check-in | ✓ | ✓ | – | – |
+| Add students (pending) | ✓ | ✓ | ✓ | – |
+| Events + award points | ✓ | – | – | – |
+| CSV import, uninvolved report | ✓ | – | – | – |
+| Own pass / points / leaderboard | – | – | – | ✓ |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture notes for the Supabase swap
 
-## Deploy on Vercel
+- **All data access goes through `lib/repo.ts`** (`Repo` interface, async
+  throughout). Components never touch localStorage. Swapping to Supabase (and
+  slotting in an offline sync queue) means replacing `LocalStorageRepo` only.
+- **Types in `lib/types.ts` mirror the planned Postgres schema** (Student,
+  House, Event, Checkin, PointAward, Role). The repo enforces unique
+  `(eventId, studentId)` per check-in.
+- **The QR pass payload** (`lib/qr.ts`) encodes `{sid, tw, sig}` with a
+  60-second rotating time window. `sig` is a fake hash today; production
+  swaps in a server-issued HMAC without changing the payload shape.
+- **House names/colors are placeholders** — configurable in `lib/config.ts`.
+- Scanning uses `@zxing/browser` (QR + Code 128/39, works in mobile Safari);
+  QR rendering uses `qrcode`; the dev-page barcode uses `jsbarcode`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Screens
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Student**: `/pass` (rotating QR, today's event, offline chip),
+  `/points` (my check-ins, house-contribution framing), `/leaderboard`.
+- **Operator**: `/operate` (event picker), `/operate/scan` (camera scanner
+  with green/amber/red full-screen results, typed/wedge-scan fallback, live
+  tally chip), `/operate/manual` (search + grade chips + one-tap check-in +
+  add student), `/operate/tally` (list with per-house counts and undo).
+- **Director**: `/events` (create/edit, tier, points pool),
+  `/events/[id]/award` (check-in breakdown by house as the input; points are
+  always human-decided; note required), `/roster` (search, pending-flagged
+  manual adds, CSV import `firstName,lastName,grade,house,studentNumber`),
+  `/reports/uninvolved` (zero check-ins this year, grouped by grade).

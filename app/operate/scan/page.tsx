@@ -71,9 +71,11 @@ function ScannerScreen() {
   const overlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScan = useRef<{ text: string; at: number }>({ text: "", at: 0 });
   const eventRef = useRef(event);
-  eventRef.current = event;
   const operatorRef = useRef(session.staffId);
-  operatorRef.current = session.staffId;
+  useEffect(() => {
+    eventRef.current = event;
+    operatorRef.current = session.staffId;
+  }, [event, session.staffId]);
 
   useEffect(() => {
     if (!event) return;
