@@ -133,7 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh flex-col">
       <header
         className={cn(
-          "z-40",
+          "z-40 pt-[env(safe-area-inset-top)]",
           overGradient
             ? "absolute inset-x-0 top-0"
             : "sticky top-0 bg-[--background]/70 backdrop-blur-xl"

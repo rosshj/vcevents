@@ -66,7 +66,7 @@ function PassScreen() {
 
   return (
     <div
-      className="-mb-32 flex min-h-dvh flex-col items-center px-4 pb-40 pt-22"
+      className="-mb-32 flex min-h-dvh flex-col items-center px-4 pb-36 pt-[calc(env(safe-area-inset-top)+5.25rem)]"
       style={{ background: `linear-gradient(180deg, ${color} 0%, color-mix(in srgb, ${color} 78%, black) 100%)` }}
     >
       <div className="w-full max-w-md text-center text-white">
@@ -83,7 +83,7 @@ function PassScreen() {
 
       <div
         key={windowNo}
-        className="animate-pass-refresh mt-6 w-full max-w-xs rounded-[2.5rem] bg-white p-5 shadow-float"
+        className="animate-pass-refresh mt-5 w-full max-w-72 rounded-[2.5rem] bg-white p-4 shadow-float"
       >
         {qrUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -108,8 +108,8 @@ function PassScreen() {
         </div>
       </div>
 
-      <div className="mt-6 w-full max-w-xs space-y-2">
-        <div className="flex items-center gap-2.5 rounded-3xl bg-white/15 px-5 py-3.5 text-white backdrop-blur">
+      <div className="mt-4 w-full max-w-72 space-y-2">
+        <div className="flex items-center gap-2.5 rounded-3xl bg-white/15 px-4 py-3 text-white backdrop-blur">
           <CalendarDays className="h-5 w-5 shrink-0 opacity-90" />
           {todaysEvent ? (
             <div className="min-w-0">
