@@ -39,15 +39,14 @@ export default function LeaderboardPage() {
         {rows.map((row, i) => (
           <div
             key={row.house.id}
-            className="relative overflow-hidden rounded-2xl border shadow-sm"
+            className="relative overflow-hidden rounded-3xl shadow-soft"
             style={{
-              borderColor: `color-mix(in srgb, ${row.house.color} 35%, white)`,
-              background: houseTint(row.house.color, i === 0 ? 14 : 8),
+              background: houseTint(row.house.color, i === 0 ? 16 : 9),
             }}
           >
-            <div className="flex items-center gap-4 p-4">
+            <div className="flex items-center gap-4 p-5">
               <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-black text-white shadow-sm"
+                className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl text-lg font-black text-white shadow-soft"
                 style={{ backgroundColor: row.house.color }}
               >
                 {i + 1}

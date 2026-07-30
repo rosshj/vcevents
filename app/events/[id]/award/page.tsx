@@ -106,7 +106,7 @@ function AwardScreen() {
       <div className="flex items-center gap-2">
         <Link
           href="/events"
-          className="rounded-full bg-stone-200 p-2 text-stone-700 hover:bg-stone-300"
+          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
           aria-label="Back to events"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -134,10 +134,9 @@ function AwardScreen() {
           return (
             <div
               key={h.id}
-              className="flex items-center gap-3 rounded-2xl border p-3"
+              className="flex items-center gap-3 rounded-3xl p-4 shadow-soft"
               style={{
-                borderColor: `color-mix(in srgb, ${h.color} 35%, white)`,
-                background: houseTint(h.color, 6),
+                background: houseTint(h.color, 7),
               }}
             >
               <div className="min-w-0 flex-1">

@@ -80,14 +80,14 @@ function EventPicker() {
                       key={event.id}
                       onClick={() => pick(event)}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-colors hover:bg-stone-50",
-                        active ? "border-stone-900" : "border-stone-200",
+                        "flex w-full items-center gap-3 rounded-3xl border bg-white p-4 text-left shadow-soft transition-colors hover:bg-stone-50",
+                        active ? "border-stone-900" : "border-black/5",
                         timing === "past" && "opacity-70"
                       )}
                     >
                       <div
                         className={cn(
-                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
                           timing === "today"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-stone-100 text-stone-500"

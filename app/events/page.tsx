@@ -62,7 +62,7 @@ function EventForm({
   };
 
   return (
-    <Card className="space-y-3 border-stone-300 bg-stone-50 p-4">
+    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
       <p className="font-bold text-stone-900">
         {initial ? "Edit event" : "New event"}
       </p>

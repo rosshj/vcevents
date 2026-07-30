@@ -65,7 +65,7 @@ function AddStudentForm({
   };
 
   return (
-    <Card className="space-y-3 border-stone-300 bg-stone-50 p-4">
+    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
       <p className="text-sm font-bold text-stone-900">Add a student</p>
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -183,7 +183,7 @@ function ManualCheckin() {
       <div className="flex items-center gap-2">
         <Link
           href="/operate/scan"
-          className="rounded-full bg-stone-200 p-2 text-stone-700 hover:bg-stone-300"
+          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
           aria-label="Back to scanner"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -220,8 +220,8 @@ function ManualCheckin() {
           className={cn(
             "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
             grade === null
-              ? "bg-stone-900 text-white"
-              : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+              ? "bg-stone-900 text-white shadow-soft"
+              : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
           )}
         >
           All
@@ -233,8 +233,8 @@ function ManualCheckin() {
             className={cn(
               "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
               grade === g
-                ? "bg-stone-900 text-white"
-                : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+                ? "bg-stone-900 text-white shadow-soft"
+                : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
             )}
           >
             Gr. {g}
@@ -256,13 +256,14 @@ function ManualCheckin() {
               narrow down.
             </p>
           )}
+          <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
           {shown.map((s) => {
             const status = statuses[s.id];
             const house = houseById(s.houseId);
             return (
               <div
                 key={s.id}
-                className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5"
+                className="flex items-center gap-3 border-b border-stone-100 px-4 py-3 last:border-0"
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-full"
@@ -297,6 +298,7 @@ function ManualCheckin() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </Screen>

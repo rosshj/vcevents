@@ -70,7 +70,7 @@ function StudentPicker({
         {label}
       </p>
       {selected && (
-        <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-2xl bg-stone-900/5 px-3.5 py-2.5 text-sm">
           <span
             className="h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: house?.color }}
@@ -89,7 +89,7 @@ function StudentPicker({
         onChange={(e) => setQuery(e.target.value)}
       />
       {results.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-soft">
           {results.map((s) => (
             <button
               key={s.id}
@@ -163,14 +163,14 @@ function CardSimulator() {
       />
       {student && (
         <div className="space-y-4 pt-2">
-          <div className="rounded-xl border border-stone-200 bg-white p-3">
+          <div className="rounded-2xl bg-stone-50 p-3">
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">
               ID card barcode (Code 128)
             </p>
             <svg ref={barcodeRef} className="mx-auto w-full max-w-72" />
           </div>
           {qrUrl && (
-            <div className="rounded-xl border border-stone-200 bg-white p-3">
+            <div className="rounded-2xl bg-stone-50 p-3">
               <p className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">
                 Phone pass QR (current 60s window)
               </p>
@@ -224,10 +224,10 @@ export default function DevPage() {
               key={r}
               onClick={() => setRole(r)}
               className={cn(
-                "rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors",
+                "rounded-2xl px-3 py-3 text-sm font-semibold transition-colors",
                 session.role === r
-                  ? "border-stone-900 bg-stone-900 text-white"
-                  : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"
+                  ? "bg-stone-900 text-white shadow-soft"
+                  : "bg-stone-900/5 text-stone-700 hover:bg-stone-900/10"
               )}
             >
               {ROLE_LABELS[r]}

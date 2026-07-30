@@ -47,9 +47,6 @@ check("pass: today's event shown", refreshText.includes("House Games Assembly"))
 check("pass: offline chip", refreshText.includes("Ready for offline"));
 await page.screenshot({ path: SHOTS + "/01-pass.png" });
 
-// grab the student's name + number from the pass for later
-const studentName = await page.textContent("h1");
-
 // ---- Leaderboard
 await page.goto(BASE + "/leaderboard", { waitUntil: "networkidle" });
 await page.waitForSelector("text=House Standings");
@@ -184,7 +181,7 @@ await page.waitForSelector("text=Smoke Test Social", { timeout: 5000 });
 check("events: create works", true);
 
 // award points on Welcome Back BBQ (already has awards -> Edit points)
-const bbqCard = page.locator("div.rounded-2xl", { hasText: "Welcome Back BBQ" }).last();
+const bbqCard = page.locator("div.rounded-3xl", { hasText: "Welcome Back BBQ" }).last();
 await bbqCard.locator('a:has-text("points")').click();
 await page.waitForURL("**/award", { timeout: 10000 });
 await page.waitForSelector("text=Award points");

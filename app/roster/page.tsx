@@ -55,7 +55,7 @@ function AddStudentCard({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card className="space-y-3 border-stone-300 bg-stone-50 p-4">
+    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
       <p className="font-bold text-stone-900">Add a student</p>
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -117,7 +117,7 @@ function CsvImportCard({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card className="space-y-3 border-stone-300 bg-stone-50 p-4">
+    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
       <div>
         <p className="font-bold text-stone-900">Import CSV</p>
         <p className="text-xs text-stone-500">
@@ -234,8 +234,8 @@ function RosterScreen() {
           className={cn(
             "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
             grade === null
-              ? "bg-stone-900 text-white"
-              : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+              ? "bg-stone-900 text-white shadow-soft"
+              : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
           )}
         >
           All
@@ -247,8 +247,8 @@ function RosterScreen() {
             className={cn(
               "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
               grade === g
-                ? "bg-stone-900 text-white"
-                : "bg-stone-200 text-stone-600 hover:bg-stone-300"
+                ? "bg-stone-900 text-white shadow-soft"
+                : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
             )}
           >
             Gr. {g}
@@ -266,33 +266,35 @@ function RosterScreen() {
               down.
             </p>
           )}
-          {shown.map((s) => {
-            const house = houseById(s.houseId);
-            return (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2"
-              >
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: house?.color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-stone-900">
-                    {s.lastName}, {s.firstName}
-                    {s.pending && (
-                      <Badge variant="amber" className="ml-1.5 align-middle">
-                        pending
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    Gr. {s.grade} · #{s.studentNumber} · {house?.name}
-                  </p>
+          <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
+            {shown.map((s) => {
+              const house = houseById(s.houseId);
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-3 border-b border-stone-100 px-4 py-2.5 last:border-0"
+                >
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: house?.color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-stone-900">
+                      {s.lastName}, {s.firstName}
+                      {s.pending && (
+                        <Badge variant="amber" className="ml-1.5 align-middle">
+                          pending
+                        </Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      Gr. {s.grade} · #{s.studentNumber} · {house?.name}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </Screen>

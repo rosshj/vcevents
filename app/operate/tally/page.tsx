@@ -65,7 +65,7 @@ function TallyScreen() {
       <div className="flex items-center gap-2">
         <Link
           href="/operate/scan"
-          className="rounded-full bg-stone-200 p-2 text-stone-700 hover:bg-stone-300"
+          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
           aria-label="Back to scanner"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -84,14 +84,13 @@ function TallyScreen() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-2">
         {byHouse.map(({ house, count }) => (
           <div
             key={house.id}
-            className="rounded-xl border p-2 text-center"
+            className="rounded-2xl p-2.5 text-center shadow-soft"
             style={{
-              borderColor: `color-mix(in srgb, ${house.color} 35%, white)`,
-              background: houseTint(house.color, 10),
+              background: houseTint(house.color, 11),
             }}
           >
             <p
@@ -114,14 +113,14 @@ function TallyScreen() {
           No check-ins yet — they&apos;ll appear here as you scan.
         </p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
           {rows.map(({ checkin, student }) => {
             const house = student ? houseById(student.houseId) : undefined;
             const method = METHOD_META[checkin.method];
             return (
               <div
                 key={checkin.id}
-                className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2"
+                className="flex items-center gap-3 border-b border-stone-100 px-4 py-2 last:border-0"
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-full"

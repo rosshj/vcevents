@@ -60,7 +60,7 @@ export function Screen({
 }) {
   return (
     <div
-      className={`mx-auto w-full ${wide ? "max-w-2xl" : "max-w-md"} px-4 py-4 ${className}`}
+      className={`mx-auto w-full ${wide ? "max-w-2xl" : "max-w-md"} px-5 py-4 ${className}`}
     >
       {children}
     </div>

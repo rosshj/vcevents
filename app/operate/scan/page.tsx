@@ -293,7 +293,7 @@ function ScannerScreen() {
         )}
         <Link
           href="/operate/manual"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 py-3 text-sm font-semibold hover:bg-white/20"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-white/10 py-3.5 text-sm font-semibold backdrop-blur hover:bg-white/20"
         >
           <Search className="h-4 w-4" />
           Manual check-in
