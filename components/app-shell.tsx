@@ -12,7 +12,6 @@ import {
   Users,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
-import { DevWidget } from "@/components/dev-widget";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
@@ -146,8 +145,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </div>
       </nav>
-
-      <DevWidget />
     </div>
   );
 }
