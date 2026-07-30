@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f5ef;
+  --background: #ffffff;
   --foreground: #292524;
 }
 
@@ -19,6 +19,12 @@
   --shadow-float:
     0 8px 20px -8px rgb(41 37 36 / 0.14), 0 24px 56px -16px rgb(41 37 36 / 0.28);
   --shadow-press: 0 1px 3px 0 rgb(41 37 36 / 0.1);
+}
+
+/* Paint html too: iOS Safari's toolbar glass and rubber-band overscroll
+   sample the root background, not just the body. */
+html {
+  background: var(--background);
 }
 
 body {

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "House points and event check-in",
     start_url: "/",
     display: "standalone",
-    background_color: "#f8f5ef",
-    theme_color: "#f8f5ef",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
   };
 }

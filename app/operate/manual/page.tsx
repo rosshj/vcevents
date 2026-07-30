@@ -65,7 +65,7 @@ function AddStudentForm({
   };
 
   return (
-    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
+    <Card className="space-y-3 p-4">
       <p className="text-sm font-bold text-stone-900">Add a student</p>
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -256,7 +256,7 @@ function ManualCheckin() {
               narrow down.
             </p>
           )}
-          <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
+          <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
           {shown.map((s) => {
             const status = statuses[s.id];
             const house = houseById(s.houseId);

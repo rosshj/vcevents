@@ -10,8 +10,7 @@ const buttonVariants = cva(
         default:
           "bg-stone-900 text-stone-50 shadow-soft hover:bg-stone-700 active:bg-stone-800",
         secondary: "bg-stone-900/8 text-stone-900 hover:bg-stone-900/15",
-        outline:
-          "border border-black/10 bg-white text-stone-900 shadow-press hover:bg-stone-50",
+        outline: "bg-stone-100 text-stone-900 hover:bg-stone-200",
         ghost: "text-stone-700 hover:bg-stone-900/8",
         destructive: "bg-red-600 text-white shadow-soft hover:bg-red-700",
       },

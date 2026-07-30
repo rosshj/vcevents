@@ -321,7 +321,7 @@ function ScannerScreen() {
               onChange={(e) => setTypedCode(e.target.value)}
               placeholder="Type or wedge-scan a student number…"
               inputMode="numeric"
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="bg-white/10 text-white placeholder:text-white/40"
               autoFocus
             />
             <Button type="submit" variant="secondary">

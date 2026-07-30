@@ -113,7 +113,7 @@ function TallyScreen() {
           No check-ins yet — they&apos;ll appear here as you scan.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
           {rows.map(({ checkin, student }) => {
             const house = student ? houseById(student.houseId) : undefined;
             const method = METHOD_META[checkin.method];

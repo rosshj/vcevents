@@ -52,7 +52,7 @@ function PassScreen() {
 
   const house = currentStudent ? houseById(currentStudent.houseId) : undefined;
   const color = house?.color ?? "#292524";
-  useThemeColor(currentStudent ? color : "#f8f5ef");
+  useThemeColor(currentStudent ? color : "#ffffff");
 
   if (!currentStudent) {
     return (

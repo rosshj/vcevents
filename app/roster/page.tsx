@@ -55,7 +55,7 @@ function AddStudentCard({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
+    <Card className="space-y-3 p-4">
       <p className="font-bold text-stone-900">Add a student</p>
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -117,7 +117,7 @@ function CsvImportCard({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Card className="space-y-3 border-black/5 bg-stone-50 p-4">
+    <Card className="space-y-3 p-4">
       <div>
         <p className="font-bold text-stone-900">Import CSV</p>
         <p className="text-xs text-stone-500">
@@ -266,7 +266,7 @@ function RosterScreen() {
               down.
             </p>
           )}
-          <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-soft">
+          <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
             {shown.map((s) => {
               const house = houseById(s.houseId);
               return (

@@ -89,7 +89,7 @@ function StudentPicker({
         onChange={(e) => setQuery(e.target.value)}
       />
       {results.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-soft">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
           {results.map((s) => (
             <button
               key={s.id}
@@ -261,7 +261,7 @@ export default function DevPage() {
 
       <CardSimulator />
 
-      <Card className="space-y-3 border-red-200 p-4">
+      <Card className="space-y-3 p-4">
         <div className="flex items-start gap-2">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
           <div>

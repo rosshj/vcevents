@@ -80,8 +80,7 @@ function EventPicker() {
                       key={event.id}
                       onClick={() => pick(event)}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-3xl border bg-white p-4 text-left shadow-soft transition-colors hover:bg-stone-50",
-                        active ? "border-stone-900" : "border-black/5",
+                        "flex w-full items-center gap-3 rounded-3xl bg-white p-4 text-left shadow-soft transition-colors hover:bg-stone-50",
                         timing === "past" && "opacity-70"
                       )}
                     >
