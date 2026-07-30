@@ -1,0 +1,144 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
+import { CalendarDays, WifiOff } from "lucide-react";
+import { useSession } from "@/components/session-provider";
+import { Guard } from "@/components/guard";
+import { repo } from "@/lib/repo";
+import { currentWindow, encodePassPayload, msLeftInWindow } from "@/lib/qr";
+import { formatEventDate } from "@/lib/format";
+import type { SchoolEvent } from "@/lib/types";
+
+function PassScreen() {
+  const { currentStudent, houseById } = useSession();
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [windowNo, setWindowNo] = useState(() => currentWindow());
+  const [msLeft, setMsLeft] = useState(() => msLeftInWindow());
+  const [todaysEvent, setTodaysEvent] = useState<SchoolEvent | null>(null);
+
+  useEffect(() => {
+    void repo.getTodaysEvent().then(setTodaysEvent);
+  }, []);
+
+  // Tick: track seconds remaining and roll the window every 60s.
+  useEffect(() => {
+    const t = setInterval(() => {
+      setMsLeft(msLeftInWindow());
+      setWindowNo((prev) => {
+        const now = currentWindow();
+        return now !== prev ? now : prev;
+      });
+    }, 250);
+    return () => clearInterval(t);
+  }, []);
+
+  // Regenerate the QR whenever the student or the time window changes.
+  useEffect(() => {
+    if (!currentStudent) return;
+    let cancelled = false;
+    void QRCode.toDataURL(encodePassPayload(currentStudent.id, windowNo), {
+      width: 640,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    }).then((url) => {
+      if (!cancelled) setQrUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStudent, windowNo]);
+
+  if (!currentStudent) {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 py-10 text-center text-sm text-stone-500">
+        Pick a student on the dev page to see their pass.
+      </div>
+    );
+  }
+
+  const house = houseById(currentStudent.houseId);
+  const color = house?.color ?? "#292524";
+  const secondsLeft = Math.ceil(msLeft / 1000);
+
+  return (
+    <div
+      className="flex min-h-[calc(100dvh-3.5rem)] flex-col items-center px-4 pb-28 pt-6"
+      style={{ background: `linear-gradient(180deg, ${color} 0%, color-mix(in srgb, ${color} 78%, black) 100%)` }}
+    >
+      <div className="w-full max-w-md text-center text-white">
+        <p className="text-sm font-medium uppercase tracking-widest opacity-80">
+          {house?.name} House
+        </p>
+        <h1 className="mt-1 text-2xl font-bold">
+          {currentStudent.firstName} {currentStudent.lastName}
+        </h1>
+        <p className="text-sm opacity-80">
+          Grade {currentStudent.grade} · #{currentStudent.studentNumber}
+        </p>
+      </div>
+
+      <div
+        key={windowNo}
+        className="animate-pass-refresh mt-6 w-full max-w-xs rounded-3xl bg-white p-4 shadow-xl"
+      >
+        {qrUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={qrUrl}
+            alt="Your check-in QR code"
+            className="aspect-square w-full"
+          />
+        ) : (
+          <div className="aspect-square w-full animate-pulse rounded-2xl bg-stone-100" />
+        )}
+        <div className="mt-2 px-1">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
+            <div
+              className="h-full rounded-full bg-stone-800 transition-[width] duration-300 ease-linear"
+              style={{ width: `${(msLeft / 60000) * 100}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-center text-xs font-medium text-stone-500">
+            Code refreshes in {secondsLeft}s
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 w-full max-w-xs space-y-2">
+        <div className="flex items-center gap-2.5 rounded-2xl bg-white/15 px-4 py-3 text-white backdrop-blur">
+          <CalendarDays className="h-5 w-5 shrink-0 opacity-90" />
+          {todaysEvent ? (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{todaysEvent.name}</p>
+              <p className="text-xs opacity-80">
+                Today · {formatEventDate(todaysEvent.date)} · show this code at
+                the door
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-semibold">No event today</p>
+              <p className="text-xs opacity-80">
+                Your pass will be ready when the next one starts
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-white/70">
+          <WifiOff className="h-3.5 w-3.5" />
+          Ready for offline
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PassPage() {
+  return (
+    <Guard allow={(r) => r === "student"}>
+      <PassScreen />
+    </Guard>
+  );
+}
