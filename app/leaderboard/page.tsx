@@ -28,10 +28,8 @@ export default function LeaderboardPage() {
 
   return (
     <Screen className="space-y-4">
-      <div className="text-center">
-        <h1 className="text-2xl font-black tracking-tight text-stone-900">
-          House Standings
-        </h1>
+      <div>
+        <h1 className="text-xl font-bold text-stone-900">House Standings</h1>
         <p className="text-sm text-stone-500">Points awarded so far this year</p>
       </div>
 
@@ -89,7 +87,7 @@ export default function LeaderboardPage() {
         ))}
       </div>
 
-      <p className="text-center text-xs text-stone-400">
+      <p className="text-xs text-stone-400">
         Points are awarded by House Directors after each event.
       </p>
     </Screen>

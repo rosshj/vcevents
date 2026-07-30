@@ -10,12 +10,14 @@ import {
   Check,
   Keyboard,
   ListChecks,
+  RefreshCw,
   Search,
   TriangleAlert,
   X,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard } from "@/components/guard";
+import { useThemeColor } from "@/components/use-theme-color";
 import { useActiveEvent } from "@/components/use-active-event";
 import { canOperate } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -59,10 +61,12 @@ function ScannerScreen() {
   const event = useActiveEvent();
   const { session, houseById } = useSession();
   const router = useRouter();
+  useThemeColor("#0c0a09"); // matches bg-stone-950
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraState, setCameraState] = useState<"starting" | "on" | "error">(
     "starting"
   );
+  const [cameraAttempt, setCameraAttempt] = useState(0);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [tally, setTally] = useState<number | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
@@ -136,46 +140,73 @@ function ScannerScreen() {
     [showOverlay]
   );
 
-  // Camera + continuous decode.
+  // Camera + continuous decode. We acquire the stream ourselves instead of
+  // letting zxing do it: iOS Safari only autoplays when muted/playsinline are
+  // real DOM attributes set before play(), and React's props don't guarantee
+  // that — the symptom is hanging on "Starting camera…" forever.
   useEffect(() => {
+    // The screen renders null until the active event loads, so the <video>
+    // only exists once `event` is set — the effect must key on it or it
+    // runs once against a missing element and the camera never starts.
     const video = videoRef.current;
-    if (!video) return;
-    const hints = new Map();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.CODE_39,
-    ]);
-    const reader = new BrowserMultiFormatReader(hints, {
-      delayBetweenScanAttempts: 150,
-    });
+    if (!event || !video) return;
+    setCameraState("starting");
+    video.setAttribute("autoplay", "");
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
     let controls: IScannerControls | null = null;
+    let stream: MediaStream | null = null;
     let cancelled = false;
-    reader
-      .decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        video,
-        (result) => {
-          if (result) void handleCode(result.getText());
-        }
-      )
-      .then((c) => {
+    // If nothing has happened after 12s (e.g. an unanswered permission
+    // prompt that was dismissed), surface the fallback UI.
+    const watchdog = setTimeout(() => {
+      if (!cancelled) {
+        setCameraState((s) => (s === "starting" ? "error" : s));
+      }
+    }, 12000);
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" } },
+        });
         if (cancelled) {
-          c.stop();
-        } else {
-          controls = c;
-          setCameraState("on");
+          stream.getTracks().forEach((t) => t.stop());
+          return;
         }
-      })
-      .catch(() => {
+        video.srcObject = stream;
+        await video.play();
+        if (cancelled) return;
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints, {
+          delayBetweenScanAttempts: 150,
+        });
+        controls = await reader.decodeFromStream(stream, video, (result) => {
+          if (result) void handleCode(result.getText());
+        });
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+        setCameraState("on");
+      } catch {
         if (!cancelled) setCameraState("error");
-      });
+      }
+    })();
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
       controls?.stop();
+      stream?.getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
       if (overlayTimer.current) clearTimeout(overlayTimer.current);
     };
-  }, [handleCode]);
+  }, [event, handleCode, cameraAttempt]);
 
   const submitTyped = () => {
     const code = typedCode.trim();
@@ -246,6 +277,13 @@ function ScannerScreen() {
               Allow camera access, or type a student number below / use manual
               check-in.
             </p>
+            <Button
+              variant="secondary"
+              onClick={() => setCameraAttempt((a) => a + 1)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try camera again
+            </Button>
           </div>
         )}
 

@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { CalendarDays, WifiOff } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard } from "@/components/guard";
+import { useThemeColor } from "@/components/use-theme-color";
 import { repo } from "@/lib/repo";
 import { currentWindow, encodePassPayload, msLeftInWindow } from "@/lib/qr";
 import { formatEventDate } from "@/lib/format";
@@ -49,6 +50,10 @@ function PassScreen() {
     };
   }, [currentStudent, windowNo]);
 
+  const house = currentStudent ? houseById(currentStudent.houseId) : undefined;
+  const color = house?.color ?? "#292524";
+  useThemeColor(currentStudent ? color : "#f8f5ef");
+
   if (!currentStudent) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-10 text-center text-sm text-stone-500">
@@ -57,8 +62,6 @@ function PassScreen() {
     );
   }
 
-  const house = houseById(currentStudent.houseId);
-  const color = house?.color ?? "#292524";
   const secondsLeft = Math.ceil(msLeft / 1000);
 
   return (

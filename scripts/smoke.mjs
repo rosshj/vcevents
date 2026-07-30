@@ -87,9 +87,16 @@ await page.waitForSelector("text=House Games Assembly");
 await page.screenshot({ path: SHOTS + "/05-event-picker.png" });
 await page.click("text=House Games Assembly");
 await page.waitForURL("**/operate/scan", { timeout: 10000 });
-await page.waitForTimeout(1500);
+await page.waitForTimeout(2500);
 await page.screenshot({ path: SHOTS + "/06-scanner.png" });
 check("scanner: page loads", true);
+// Regression guard: the camera must actually start (fake device in CI),
+// not sit on "Starting camera…" forever.
+const camOn = await page.evaluate(() => {
+  const v = document.querySelector("video");
+  return Boolean(v && !v.paused && v.readyState >= 2);
+});
+check("scanner: camera stream started", camOn);
 
 // typed-code path: open keyboard input, check in a real student number
 // find a student number via the manual page first
