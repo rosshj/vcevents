@@ -65,12 +65,13 @@ export function EventForm({
   return (
     <div className="space-y-5">
       <Field label="Name" htmlFor="event-name">
+        {/* No autoFocus: focusing while the sheet animates open makes iOS
+            scroll the drawer off-screen to chase the keyboard. */}
         <Input
           id="event-name"
           placeholder="e.g. Terry Fox Run"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          autoFocus={!initial}
           className="h-12"
         />
       </Field>
