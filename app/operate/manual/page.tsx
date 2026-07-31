@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Check, TriangleAlert, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useFormSheet } from "@/components/form-sheet";
+import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import { useActiveEvent } from "@/components/use-active-event";
@@ -14,7 +15,6 @@ import type { Student } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const RESULT_CAP = 60;
@@ -28,7 +28,16 @@ function ManualCheckin() {
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[]>([]);
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({});
+  const [version, setVersion] = useState(0);
+  const { openStudentForm } = useFormSheet();
   usePageHeader("Manual check-in", "/operate/scan");
+
+  // Refetch when the add-student sheet checks someone in over this screen.
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, bump);
+  }, []);
 
   // Pre-mark rows for students already checked in to this event.
   useEffect(() => {
@@ -40,7 +49,7 @@ function ManualCheckin() {
         return next;
       });
     });
-  }, [event]);
+  }, [event, version]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +63,7 @@ function ManualCheckin() {
     return () => {
       cancelled = true;
     };
-  }, [query, grade]);
+  }, [query, grade, version]);
 
   const shown = useMemo(() => results.slice(0, RESULT_CAP), [results]);
 
@@ -81,13 +90,14 @@ function ManualCheckin() {
           {event.name}
         </p>
         {canAddStudents(session.role) && (
-          <Link
-            href="/students/new?checkin=1"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openStudentForm({ checkin: true })}
           >
             <UserPlus className="h-4 w-4" />
             Add
-          </Link>
+          </Button>
         )}
       </div>
 

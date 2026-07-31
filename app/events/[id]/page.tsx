@@ -14,6 +14,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useFormSheet } from "@/components/form-sheet";
 import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
@@ -50,6 +51,7 @@ function EventDetail() {
   const [awarded, setAwarded] = useState(0);
   const [version, setVersion] = useState(0);
   const { openStudent } = useStudentSheet();
+  const { openEventForm } = useFormSheet();
   usePageHeader(event?.name ?? "Event", "/events");
 
   // Refetch when the student sheet checks someone in over this screen.
@@ -160,13 +162,14 @@ function EventDetail() {
             </Link>
           )}
           {canManageEvents(session.role) && (
-            <Link
-              href={`/events/${event.id}/edit`}
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openEventForm(event)}
             >
               <Pencil className="h-4 w-4" />
               Edit
-            </Link>
+            </Button>
           )}
         </div>
       )}

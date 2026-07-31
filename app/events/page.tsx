@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CalendarPlus, ChevronRight, ScanLine } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useFormSheet } from "@/components/form-sheet";
+import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { canManageEvents, canViewEvents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { eventTiming, formatEventDate, type EventTiming } from "@/lib/format";
 import type { SchoolEvent } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EventRow {
@@ -43,7 +45,16 @@ async function fetchRows(): Promise<EventRow[]> {
 
 function EventsScreen() {
   const { session } = useSession();
+  const { openEventForm } = useFormSheet();
   const [rows, setRows] = useState<EventRow[] | null>(null);
+  const [version, setVersion] = useState(0);
+
+  // Refetch when the form sheet creates/edits an event over this screen.
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, bump);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +64,7 @@ function EventsScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [version]);
 
   return (
     <Screen className="space-y-5">
@@ -65,13 +76,10 @@ function EventsScreen() {
           </p>
         </div>
         {canManageEvents(session.role) && (
-          <Link
-            href="/events/new"
-            className={buttonVariants({ size: "sm" })}
-          >
+          <Button size="sm" onClick={() => openEventForm()}>
             <CalendarPlus className="h-4 w-4" />
             New
-          </Link>
+          </Button>
         )}
       </div>
 
