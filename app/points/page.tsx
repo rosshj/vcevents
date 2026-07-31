@@ -61,6 +61,7 @@ function MyPoints() {
 
   return (
     <Screen className="space-y-4">
+      <h1 className="text-2xl font-black tracking-tight text-stone-900">My Points</h1>
       <div
         className="rounded-3xl p-5 text-white shadow-sm"
         style={{ background: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 70%, black))` }}

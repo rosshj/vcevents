@@ -30,7 +30,7 @@ export default function LeaderboardPage() {
   return (
     <Screen className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-stone-900">House Standings</h1>
+        <h1 className="text-2xl font-black tracking-tight text-stone-900">House Standings</h1>
         <p className="text-sm text-stone-500">Points awarded so far this year</p>
       </div>
 

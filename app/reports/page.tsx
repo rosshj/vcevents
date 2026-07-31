@@ -139,7 +139,7 @@ function ReportsScreen() {
   return (
     <Screen className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-stone-900">Reports</h1>
+        <h1 className="text-2xl font-black tracking-tight text-stone-900">Reports</h1>
         <p className="text-sm text-stone-500">
           Participation this year — points stay human-decided.
         </p>

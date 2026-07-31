@@ -59,7 +59,7 @@ function EventsScreen() {
     <Screen className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">Events</h1>
+          <h1 className="text-2xl font-black tracking-tight text-stone-900">Events</h1>
           <p className="text-sm text-stone-500">
             Open an event to run check-in and see who&apos;s there.
           </p>

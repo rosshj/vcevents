@@ -46,7 +46,7 @@ function StudentsScreen() {
     <Screen className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">Students</h1>
+          <h1 className="text-2xl font-black tracking-tight text-stone-900">Students</h1>
           <p className="text-sm text-stone-500">{total} students</p>
         </div>
         <div className="flex gap-1.5">
