@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, FileUp, UserPlus } from "lucide-react";
+import { FileUp, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useStudentSheet } from "@/components/student-sheet";
 import { usePageChrome } from "@/components/page-header";
@@ -14,6 +14,7 @@ import type { Student } from "@/lib/types";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { StudentListRow } from "@/components/student-row";
 import { cn } from "@/lib/utils";
 
 const RESULT_CAP = 100;
@@ -70,6 +71,41 @@ function StudentsScreen() {
 
   const shown = results?.slice(0, RESULT_CAP) ?? [];
 
+  // Break the browse view into A/B/C… sections so it reads as a directory,
+  // not a wall. While searching, results are already narrow — keep them flat.
+  let grouped: { letter: string; students: Student[] }[] | null = null;
+  if (!query.trim()) {
+    grouped = [];
+    for (const s of shown) {
+      const letter = (s.lastName[0] ?? "#").toUpperCase();
+      const last = grouped[grouped.length - 1];
+      if (last?.letter === letter) last.students.push(s);
+      else grouped.push({ letter, students: [s] });
+    }
+  }
+
+  const renderRow = (s: Student) => {
+    const house = houseById(s.houseId);
+    return (
+      <StudentListRow
+        key={s.id}
+        color={house?.color}
+        title={
+          <>
+            {s.lastName}, {s.firstName}
+            {s.pending && (
+              <Badge variant="amber" className="ml-1.5 align-middle">
+                pending
+              </Badge>
+            )}
+          </>
+        }
+        meta={`Gr. ${s.grade} · #${s.studentNumber} · ${house?.name}`}
+        onClick={() => openStudent(s.id)}
+      />
+    );
+  };
+
   return (
     <Screen className="space-y-3">
       <Input
@@ -109,44 +145,29 @@ function StudentsScreen() {
       {!results ? (
         <div className="h-48 animate-pulse rounded-2xl bg-stone-200/60" />
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-4">
           {results.length > RESULT_CAP && (
             <p className="text-xs text-stone-500">
               Showing first {RESULT_CAP} of {results.length} — search to narrow
               down.
             </p>
           )}
-          <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
-            {shown.map((s) => {
-              const house = houseById(s.houseId);
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => openStudent(s.id)}
-                  className="flex w-full items-center gap-3 border-b border-stone-100 px-4 py-2.5 text-left last:border-0 hover:bg-stone-50"
-                >
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: house?.color }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-stone-900">
-                      {s.lastName}, {s.firstName}
-                      {s.pending && (
-                        <Badge variant="amber" className="ml-1.5 align-middle">
-                          pending
-                        </Badge>
-                      )}
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      Gr. {s.grade} · #{s.studentNumber} · {house?.name}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
-                </button>
-              );
-            })}
-          </div>
+          {grouped ? (
+            grouped.map(({ letter, students }) => (
+              <div key={letter}>
+                <h2 className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-stone-400">
+                  {letter}
+                </h2>
+                <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
+                  {students.map(renderRow)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
+              {shown.map(renderRow)}
+            </div>
+          )}
         </div>
       )}
     </Screen>

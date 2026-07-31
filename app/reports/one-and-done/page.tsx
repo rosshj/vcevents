@@ -11,6 +11,7 @@ import { repo } from "@/lib/repo";
 import { GRADES } from "@/lib/config";
 import type { Student } from "@/lib/types";
 import { Card } from "@/components/ui/card";
+import { StudentListRow } from "@/components/student-row";
 
 interface Row {
   student: Student;
@@ -93,45 +94,18 @@ function OneAndDoneScreen() {
               Grade {grade} · {group.length}
             </h2>
             <Card className="overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-stone-200 bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
-                    <th className="px-3 py-2 font-semibold">Student</th>
-                    <th className="px-3 py-2 font-semibold">House</th>
-                    <th className="px-3 py-2 font-semibold">Attended</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.map(({ student: s, eventName }) => {
-                    const house = houseById(s.houseId);
-                    return (
-                      <tr
-                        key={s.id}
-                        className="border-b border-stone-100 last:border-0"
-                      >
-                        <td className="px-3 py-2 font-medium text-stone-900">
-                          <button
-                            onClick={() => openStudent(s.id)}
-                            className="text-left hover:underline"
-                          >
-                            {s.lastName}, {s.firstName}
-                          </button>
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="inline-flex items-center gap-1.5 text-stone-600">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: house?.color }}
-                            />
-                            {house?.name}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-stone-600">{eventName}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {group.map(({ student: s, eventName }) => {
+                const house = houseById(s.houseId);
+                return (
+                  <StudentListRow
+                    key={s.id}
+                    color={house?.color}
+                    title={`${s.lastName}, ${s.firstName}`}
+                    meta={`${house?.name} · went to ${eventName}`}
+                    onClick={() => openStudent(s.id)}
+                  />
+                );
+              })}
             </Card>
           </div>
         ))
