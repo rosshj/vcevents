@@ -14,7 +14,7 @@ import { Field } from "@/components/ui/field";
 function ImportScreen() {
   const [csv, setCsv] = useState("");
   const [result, setResult] = useState<CsvImportResult | null>(null);
-  usePageHeader("Import students", "/students");
+  usePageHeader("Import students", "/students", { hideNav: true });
 
   const run = async () => {
     setResult(await repo.importStudentsCsv(csv));

@@ -230,6 +230,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 pb-32">{children}</main>
 
+      {!pageHeader?.hideNav && (
       <nav className="pointer-events-none fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),1rem)] z-40 flex justify-center px-4">
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-white/70 p-1.5 shadow-float backdrop-blur-xl">
           {nav.map((item) => {
@@ -261,6 +262,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </div>
       </nav>
+      )}
 
       {/* Only on root tabs — focused sub-pages (forms, drill-ins) keep a
           clean stage; the back button already anchors navigation there. */}

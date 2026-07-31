@@ -17,7 +17,7 @@ function NewStudentScreen() {
   // them in to the event being operated, and return to the search.
   const checkinMode = searchParams.get("checkin") === "1" && Boolean(session.activeEventId);
   const backHref = checkinMode ? "/operate/manual" : "/students";
-  usePageHeader("Add student", backHref);
+  usePageHeader("Add student", backHref, { hideNav: true });
 
   return (
     <Screen>

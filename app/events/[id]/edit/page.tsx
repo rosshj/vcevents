@@ -13,7 +13,7 @@ function EditEventScreen() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [event, setEvent] = useState<SchoolEvent | null>(null);
-  usePageHeader("Edit event", `/events/${params.id}`);
+  usePageHeader("Edit event", `/events/${params.id}`, { hideNav: true });
 
   useEffect(() => {
     let cancelled = false;

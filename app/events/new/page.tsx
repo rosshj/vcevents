@@ -8,7 +8,7 @@ import { EventForm } from "@/components/event-form";
 
 function NewEventScreen() {
   const router = useRouter();
-  usePageHeader("New event", "/events");
+  usePageHeader("New event", "/events", { hideNav: true });
   return (
     <Screen>
       <EventForm onSaved={() => router.push("/events")} />
