@@ -19,7 +19,7 @@ export interface Db {
   staff: StaffUser[];
 }
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 /** Deterministic PRNG so "reset data" always rebuilds the same world. */
 function mulberry32(seed: number) {
@@ -97,14 +97,21 @@ export function buildSeedDb(): Db {
     { id: "staff_06", name: "Aidan Walsh (Gr. 11 Exec)", role: "house_executive" },
   ];
 
-  // 2 past, 1 today, 2 future.
+  // 3 past, 1 today, 2 future.
   const events: SchoolEvent[] = [
     {
       id: "evt_bbq",
       name: "Welcome Back BBQ",
-      date: localDateString(dateOffset(-21)),
+      date: localDateString(dateOffset(-28)),
       tier: "major",
       pointsPool: 1000,
+    },
+    {
+      id: "evt_movie",
+      name: "Grade 7 Movie Night",
+      date: localDateString(dateOffset(-14)),
+      tier: "minor",
+      pointsPool: 400,
     },
     {
       id: "evt_terryfox",
@@ -136,20 +143,41 @@ export function buildSeedDb(): Db {
     },
   ];
 
-  // Check-ins for the two past events. Different attendance rates so the
-  // uninvolved report and per-house breakdowns have texture.
+  // Check-ins for the past events. Houses and grades get distinct
+  // personalities so the reports have real texture: Loyola shows up in
+  // force, Aquinas is struggling, grade 9 dips, seniors carry.
+  const houseFactor: Record<string, number> = {
+    loyola: 1.3,
+    brebeuf: 1.05,
+    xavier: 0.9,
+    aquinas: 0.62,
+  };
+  const gradeFactor: Record<number, number> = {
+    7: 0.72,
+    8: 0.95,
+    9: 0.68,
+    10: 1.0,
+    11: 1.18,
+    12: 1.32,
+  };
   const checkins: Checkin[] = [];
   const seedCheckinsFor = (
     event: SchoolEvent,
     attendance: number,
-    daysAgo: number
+    daysAgo: number,
+    gradeOverride?: (grade: number) => number
   ) => {
     const eventDay = dateOffset(-daysAgo);
     eventDay.setHours(17, 30, 0, 0);
     for (const s of students) {
-      // Grade 12s show up a bit more; grade 7s a bit less — feels real.
-      const gradeBias = (s.grade - 9.5) * 0.03;
-      if (rand() < attendance + gradeBias) {
+      const gf = gradeOverride
+        ? gradeOverride(s.grade)
+        : gradeFactor[s.grade] ?? 1;
+      const p = Math.min(
+        attendance * (houseFactor[s.houseId] ?? 1) * gf,
+        0.97
+      );
+      if (rand() < p) {
         const method =
           rand() < 0.55 ? "qr" : rand() < 0.75 ? "id_scan" : "manual";
         const at = new Date(eventDay.getTime() + Math.floor(rand() * 90) * 60000);
@@ -164,8 +192,12 @@ export function buildSeedDb(): Db {
       }
     }
   };
-  seedCheckinsFor(events[0], 0.58, 21);
-  seedCheckinsFor(events[1], 0.44, 7);
+  seedCheckinsFor(events[0], 0.6, 28);
+  // Movie night skews heavily junior — seniors mostly skip it.
+  seedCheckinsFor(events[1], 0.42, 14, (grade) =>
+    grade <= 8 ? 1.5 : grade === 9 ? 0.9 : 0.25
+  );
+  seedCheckinsFor(events[2], 0.4, 7);
 
   // Point awards for the two past events (human-decided numbers).
   const awardedAt = (daysAgo: number) => {

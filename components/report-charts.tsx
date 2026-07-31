@@ -6,7 +6,12 @@ import {
   BarChart,
   BarXAxis,
   ChartTooltip,
+  Gauge,
   Grid,
+  PieCenter,
+  PieChart,
+  type PieData,
+  PieSlice,
   Legend,
   type LegendItemData,
   LegendItemComponent,
@@ -21,10 +26,6 @@ import {
   RadarGrid,
   RadarLabels,
   type RadarMetric,
-  Ring,
-  RingCenter,
-  RingChart,
-  type RingData,
 } from "@/components/bklit";
 import { GRADES } from "@/lib/config";
 import type { House } from "@/lib/types";
@@ -60,8 +61,32 @@ export function EventAttendanceChart({
   );
 }
 
-/** Share of all check-ins by house — activity rings + labeled legend. */
-export function HouseShareRings({
+/** Headline gauge: total check-ins against the possible maximum. */
+export function TotalCheckinsGauge({
+  total,
+  possible,
+}: {
+  total: number;
+  possible: number;
+}) {
+  const pctValue = possible > 0 ? Math.round((total / possible) * 100) : 0;
+  return (
+    <div className="mx-auto w-full max-w-xs">
+      <Gauge
+        activeFill="#292524"
+        centerValue={total}
+        defaultLabel="Total check-ins"
+        inactiveFill="#a8a29e"
+        inactiveFillOpacity={0.4}
+        spacing={25}
+        value={pctValue}
+      />
+    </div>
+  );
+}
+
+/** Share of all check-ins by house — donut + labeled legend. */
+export function HousePie({
   rows,
   total,
 }: {
@@ -69,31 +94,32 @@ export function HouseShareRings({
   total: number;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const data: RingData[] = rows.map((r) => ({
+  const data: PieData[] = rows.map((r) => ({
     label: r.house.name,
     value: r.count,
-    maxValue: Math.max(total, 1),
     color: r.house.color,
   }));
   const legendItems: LegendItemData[] = data.map((d) => ({
     label: d.label,
     value: d.value,
-    maxValue: d.maxValue,
+    maxValue: Math.max(total, 1),
     color: d.color ?? "",
   }));
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
-      <RingChart
+      <PieChart
         data={data}
         hoveredIndex={hovered}
+        innerRadius={56}
         onHoverChange={setHovered}
+        padAngle={0.02}
         size={210}
       >
         {data.map((item, index) => (
-          <Ring index={index} key={item.label} />
+          <PieSlice index={index} key={item.label} />
         ))}
-        <RingCenter defaultLabel="Check-ins" />
-      </RingChart>
+        <PieCenter defaultLabel="Check-ins" />
+      </PieChart>
       <Legend
         className="w-full flex-1"
         hoveredIndex={hovered}
@@ -110,6 +136,26 @@ export function HouseShareRings({
         </LegendItemComponent>
       </Legend>
     </div>
+  );
+}
+
+/** Participation rate per grade — single neutral series. */
+export function GradeParticipationBars({
+  byGrade,
+}: {
+  byGrade: { grade: number; total: number; participated: number }[];
+}) {
+  const data = byGrade.map((g) => ({
+    label: `Gr ${g.grade}`,
+    rate: g.total > 0 ? Math.round((g.participated / g.total) * 100) : 0,
+  }));
+  return (
+    <BarChart aspectRatio="2 / 1" barGap={0.3} data={data} xDataKey="label">
+      <Grid horizontal />
+      <Bar dataKey="rate" fill="#44403c" lineCap={4} />
+      <BarXAxis />
+      <ChartTooltip />
+    </BarChart>
   );
 }
 

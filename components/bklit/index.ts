@@ -27,3 +27,8 @@ export {
   LegendProgress,
   LegendValue,
 } from "./legend";
+export { Gauge, type GaugeProps } from "./gauge";
+export { PieChart, type PieChartProps } from "./pie-chart";
+export { PieSlice, type PieSliceProps } from "./pie-slice";
+export { PieCenter, type PieCenterProps } from "./pie-center";
+export type { PieData } from "./pie-context";

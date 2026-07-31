@@ -15,8 +15,10 @@ import { Card } from "@/components/ui/card";
 import {
   chartHouseOrder,
   EventAttendanceChart,
+  GradeParticipationBars,
   GradeRadar,
-  HouseShareRings,
+  HousePie,
+  TotalCheckinsGauge,
 } from "@/components/report-charts";
 
 interface ReportData {
@@ -182,12 +184,14 @@ function ReportsScreen() {
   return (
     <Screen className="space-y-5">
       <Card className="p-5">
-        <p className="text-4xl font-black tabular-nums text-stone-900">
-          {pct(data.participated, data.totalStudents)}%
-        </p>
-        <p className="mt-1 text-sm text-stone-600">
-          of students have checked in to at least one event (
-          {data.participated} of {data.totalStudents})
+        <TotalCheckinsGauge
+          possible={data.totalStudents * data.pastEvents.length}
+          total={data.totalCheckins}
+        />
+        <p className="mt-2 text-center text-sm text-stone-600">
+          {pct(data.participated, data.totalStudents)}% of students (
+          {data.participated} of {data.totalStudents}) have checked in to at
+          least one event
         </p>
       </Card>
 
@@ -222,14 +226,18 @@ function ReportsScreen() {
           Check-ins by house
         </h2>
         <Card className="p-5">
-          <HouseShareRings rows={data.houseCheckins} total={data.totalCheckins} />
+          <HousePie rows={data.houseCheckins} total={data.totalCheckins} />
         </Card>
       </div>
 
       <div>
-        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+        <h2 className="mb-1 text-xs font-bold uppercase tracking-wide text-stone-500">
           House engagement by grade
         </h2>
+        <p className="mb-2 text-xs text-stone-400">
+          Share of each house&apos;s students in each grade who have checked
+          in to at least one event this year.
+        </p>
         <Card className="p-5">
           <GradeRadar
             houses={data.houseCheckins.map((r) => r.house)}
@@ -242,17 +250,9 @@ function ReportsScreen() {
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
           Participation by grade
         </h2>
-        <div className="space-y-1.5">
-          {data.byGrade.map((g) => (
-            <RateRow
-              key={g.grade}
-              label={`Grade ${g.grade}`}
-              barColor="#292524"
-              participated={g.participated}
-              total={g.total}
-            />
-          ))}
-        </div>
+        <Card className="p-4 pt-5">
+          <GradeParticipationBars byGrade={data.byGrade} />
+        </Card>
       </div>
 
       <div>
