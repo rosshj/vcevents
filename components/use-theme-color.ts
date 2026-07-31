@@ -24,12 +24,18 @@ export function useThemeColor(color: string) {
     }
     meta.content = color;
     const el = meta;
+    // Paint html AND body: Safari's status-bar backdrop is derived from the
+    // page canvas, and different iOS versions read it from different places.
     const root = document.documentElement;
-    const prevBg = root.style.backgroundColor;
+    const body = document.body;
+    const prevRootBg = root.style.backgroundColor;
+    const prevBodyBg = body.style.backgroundColor;
     root.style.backgroundColor = color;
+    body.style.backgroundColor = color;
     return () => {
       el.content = DEFAULT_THEME_COLOR;
-      root.style.backgroundColor = prevBg;
+      root.style.backgroundColor = prevRootBg;
+      body.style.backgroundColor = prevBodyBg;
     };
   }, [color]);
 }
