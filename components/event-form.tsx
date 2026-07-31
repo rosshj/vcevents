@@ -65,8 +65,8 @@ export function EventForm({
   return (
     <div className="space-y-5">
       <Field label="Name" htmlFor="event-name">
-        {/* No autoFocus: focusing while the sheet animates open makes iOS
-            scroll the drawer off-screen to chase the keyboard. */}
+        {/* No autoFocus: iOS scrolls unpredictably when the keyboard opens
+            during the page-entry transition. */}
         <Input
           id="event-name"
           placeholder="e.g. Terry Fox Run"

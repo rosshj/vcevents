@@ -60,8 +60,8 @@ export function StudentForm({
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         <Field label="First name" htmlFor="student-first">
-          {/* No autoFocus: focusing while the sheet animates open makes iOS
-              scroll the drawer off-screen to chase the keyboard. */}
+          {/* No autoFocus: iOS scrolls unpredictably when the keyboard opens
+              during the page-entry transition. */}
           <Input
             id="student-first"
             placeholder="Liam"

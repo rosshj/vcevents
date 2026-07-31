@@ -86,7 +86,7 @@ await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=House Games Assembly");
 check(
   "events: teacher sees list without New button",
-  (await page.locator('button:has-text("New")').count()) === 0
+  (await page.locator('a[href="/events/new"]').count()) === 0
 );
 await page.goto(BASE + "/reports", { waitUntil: "networkidle" });
 check(
@@ -209,17 +209,17 @@ await page.waitForTimeout(300);
 
 await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Welcome Back BBQ");
-await page.click('button:has-text("New")');
-await page.waitForSelector("#event-name", { timeout: 5000 });
+await page.click('a[href="/events/new"]');
+await page.waitForURL("**/events/new", { timeout: 5000 });
 await page.fill("#event-name", "Smoke Test Social");
 // tier segmented control drives the default pool
 await page.click('[role="radio"]:has-text("Major")');
 const poolVal = await page.inputValue("#event-pool");
 check("events: tier picks default pool", poolVal === "1000", poolVal);
 await page.click('button:has-text("Create event")');
+await page.waitForURL(/\/events$/, { timeout: 5000 });
 await page.waitForSelector("text=Smoke Test Social", { timeout: 5000 });
-check("events: director create works (sheet)", true);
-await page.waitForTimeout(500);
+check("events: director create works", true);
 
 await page.click("text=Welcome Back BBQ");
 await page.waitForSelector("text=Attendance by house");
@@ -241,28 +241,27 @@ check("award: leaderboard updated", (await page.textContent("body")).includes("5
 await page.goto(BASE + "/students", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Students");
 check("students: total ~600", /\d{3} students/.test(await page.textContent("body")));
-await page.click('button:has-text("CSV")');
-await page.waitForSelector("#csv", { timeout: 5000 });
+await page.click('a[href="/students/import"]');
+await page.waitForURL("**/students/import", { timeout: 5000 });
 await page.fill("#csv", "Testy,McTestface,9,Loyola,999111");
 await page.click('button:has-text("Import")');
 await page.waitForSelector("text=Imported 1 student", { timeout: 5000 });
-check("students: CSV import works (sheet)", true);
-await page.keyboard.press("Escape");
-await page.waitForTimeout(600);
+check("students: CSV import works", true);
+await page.goto(BASE + "/students", { waitUntil: "networkidle" });
 await page.fill('input[placeholder*="Search name"]', "McTestface");
 await page.waitForTimeout(600);
 check(
   "students: imported student searchable",
   (await page.textContent("body")).includes("McTestface")
 );
-await page.click('button:has-text("Add")');
-await page.waitForSelector("#student-first", { timeout: 5000 });
+await page.click('a[href="/students/new"]');
+await page.waitForURL("**/students/new", { timeout: 5000 });
 await page.fill("#student-first", "Pendy");
 await page.fill("#student-last", "Pendington");
 await page.click('[role="radio"]:has-text("Xavier")');
 await page.fill("#student-number", "999222");
 await page.click('button:has-text("Add student")');
-await page.waitForTimeout(800);
+await page.waitForURL(/\/students$/, { timeout: 5000 });
 await page.fill('input[placeholder*="Search name"]', "Pendington");
 await page.waitForTimeout(600);
 const addedRow = await page.textContent("body");

@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ChevronRight, FileUp, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
-import { useFormSheet } from "@/components/form-sheet";
-import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { useStudentSheet } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { canImportCsv, canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { GRADES } from "@/lib/config";
 import type { Student } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -21,19 +20,10 @@ const RESULT_CAP = 100;
 function StudentsScreen() {
   const { session, houseById } = useSession();
   const { openStudent } = useStudentSheet();
-  const { openStudentForm, openCsvImport } = useFormSheet();
-  const [version, setVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[] | null>(null);
   const [total, setTotal] = useState(0);
-
-  // Refetch when the form sheet adds/imports students over this screen.
-  useEffect(() => {
-    const bump = () => setVersion((v) => v + 1);
-    window.addEventListener(DATA_CHANGED_EVENT, bump);
-    return () => window.removeEventListener(DATA_CHANGED_EVENT, bump);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +38,7 @@ function StudentsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [query, grade, version]);
+  }, [query, grade]);
 
   const shown = results?.slice(0, RESULT_CAP) ?? [];
 
@@ -60,19 +50,21 @@ function StudentsScreen() {
           <p className="text-sm text-stone-500">{total} students</p>
         </div>
         <div className="flex gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openStudentForm()}
+          <Link
+            href="/students/new"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             <UserPlus className="h-4 w-4" />
             Add
-          </Button>
+          </Link>
           {canImportCsv(session.role) && (
-            <Button variant="outline" size="sm" onClick={openCsvImport}>
+            <Link
+              href="/students/import"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               <FileUp className="h-4 w-4" />
               CSV
-            </Button>
+            </Link>
           )}
         </div>
       </div>
