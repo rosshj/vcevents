@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import { canViewReports } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { GRADES } from "@/lib/config";
@@ -15,6 +16,7 @@ function UninvolvedScreen() {
   const { houseById } = useSession();
   const [students, setStudents] = useState<Student[] | null>(null);
   const [totalStudents, setTotalStudents] = useState(0);
+  usePageHeader("Uninvolved students", "/reports");
 
   useEffect(() => {
     let cancelled = false;
@@ -40,23 +42,9 @@ function UninvolvedScreen() {
 
   return (
     <Screen className="space-y-4" wide>
-      <div className="flex items-center gap-2">
-        <Link
-          href="/reports"
-          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
-          aria-label="Back to reports"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-stone-900">
-            Uninvolved students
-          </h1>
-          <p className="text-sm text-stone-500">
-            No check-ins to any event this year — worth a nudge.
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-stone-500">
+        No check-ins to any event this year — worth a nudge.
+      </p>
 
       {!students ? (
         <div className="h-48 animate-pulse rounded-2xl bg-stone-200/60" />

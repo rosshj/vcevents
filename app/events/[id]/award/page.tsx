@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Trophy } from "lucide-react";
+import { Check, Trophy } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import { canAwardPoints } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { formatEventDate } from "@/lib/format";
@@ -27,6 +27,7 @@ function AwardScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  usePageHeader("Award points", `/events/${params.id}`);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,20 +104,10 @@ function AwardScreen() {
 
   return (
     <Screen className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/events"
-          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
-          aria-label="Back to events"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-bold text-stone-900">Award points</h1>
-          <p className="truncate text-xs text-stone-500">
-            {event.name} · {formatEventDate(event.date)}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-sm text-stone-500">
+          {event.name} · {formatEventDate(event.date)}
+        </p>
         <Badge variant={event.tier === "major" ? "default" : "secondary"}>
           {event.pointsPool} pt pool
         </Badge>

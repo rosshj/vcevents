@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Check, TriangleAlert, UserPlus } from "lucide-react";
+import { Check, TriangleAlert, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import { useActiveEvent } from "@/components/use-active-event";
 import { canAddStudents, canOperate } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -126,6 +126,7 @@ function ManualCheckin() {
   const [results, setResults] = useState<Student[]>([]);
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({});
   const [showAdd, setShowAdd] = useState(false);
+  usePageHeader("Manual check-in", "/operate/scan");
 
   // Pre-mark rows for students already checked in to this event.
   useEffect(() => {
@@ -181,17 +182,9 @@ function ManualCheckin() {
   return (
     <Screen className="space-y-3">
       <div className="flex items-center gap-2">
-        <Link
-          href="/operate/scan"
-          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
-          aria-label="Back to scanner"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-bold text-stone-900">Manual check-in</h1>
-          <p className="truncate text-xs text-stone-500">{event.name}</p>
-        </div>
+        <p className="min-w-0 flex-1 truncate text-sm text-stone-500">
+          {event.name}
+        </p>
         {canAddStudents(session.role) && (
           <Button
             variant={showAdd ? "secondary" : "outline"}

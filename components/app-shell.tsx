@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  ChevronLeft,
   ClipboardList,
   QrCode,
   ScanLine,
@@ -15,6 +16,10 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSession } from "@/components/session-provider";
+import {
+  PageHeaderContext,
+  type PageHeader,
+} from "@/components/page-header";
 import { repo } from "@/lib/repo";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -120,6 +125,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { ready, session, currentStudent, currentStaff, houseById } =
     useSession();
   const pathname = usePathname();
+  const [pageHeader, setPageHeader] = useState<PageHeader | null>(null);
+  const headerCtx = useMemo(() => ({ set: setPageHeader }), []);
 
   // Standalone launch quirk: iOS sizes the layout viewport too short until
   // the first scroll gesture. The page often isn't scrollable at rest, so a
@@ -158,13 +165,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const avatarColor =
     session.role === "student" && house ? house.color : "#292524";
 
-  if (immersive) return <>{children}</>;
+  if (immersive) {
+    return (
+      <PageHeaderContext.Provider value={headerCtx}>
+        {children}
+      </PageHeaderContext.Provider>
+    );
+  }
 
   // The pass screen paints a full-bleed house gradient; float the header
   // over it so the color runs to the very top.
   const overGradient = pathname === "/pass";
 
   return (
+    <PageHeaderContext.Provider value={headerCtx}>
     <div className="flex min-h-dvh flex-col">
       <header
         className={cn(
@@ -174,24 +188,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : "sticky top-0 bg-[--background]/70 backdrop-blur-xl"
         )}
       >
-        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-900 text-[11px] font-black tracking-tight text-amber-300 shadow-soft">
-              VC
-            </span>
-            <span
-              className={cn(
-                "text-[15px] font-bold tracking-tight",
-                overGradient ? "text-white" : "text-stone-900"
-              )}
-            >
-              {APP_NAME}
-            </span>
-          </Link>
+        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between gap-3 px-5">
+          {pageHeader ? (
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <Link
+                href={pageHeader.backHref}
+                aria-label="Back"
+                className="-ml-2.5 rounded-full p-2 text-stone-700 hover:bg-stone-900/8"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Link>
+              <h1 className="min-w-0 truncate text-[17px] font-bold text-stone-900">
+                {pageHeader.title}
+              </h1>
+            </div>
+          ) : (
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-900 text-[11px] font-black tracking-tight text-amber-300 shadow-soft">
+                VC
+              </span>
+              <span
+                className={cn(
+                  "text-[15px] font-bold tracking-tight",
+                  overGradient ? "text-white" : "text-stone-900"
+                )}
+              >
+                {APP_NAME}
+              </span>
+            </Link>
+          )}
           <Link
             href="/dev"
             aria-label="Switch role (dev)"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white shadow-soft ring-2 ring-white/80 transition-transform hover:scale-105"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-soft ring-2 ring-white/80 transition-transform hover:scale-105"
             style={{ backgroundColor: avatarColor }}
           >
             {ready ? initials : ""}
@@ -235,5 +264,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <OperatingPill />
     </div>
+    </PageHeaderContext.Provider>
   );
 }

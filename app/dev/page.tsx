@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 
 const ROLES: Role[] = [
@@ -194,6 +195,7 @@ export default function DevPage() {
     setStaffId,
   } = useSession();
   const [resetting, setResetting] = useState(false);
+  usePageHeader("Dev tools", "/");
 
   const handleReset = useCallback(async () => {
     if (!window.confirm("Reset all data back to the seeded state?")) return;
@@ -208,13 +210,9 @@ export default function DevPage() {
 
   return (
     <Screen className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-stone-900">Dev tools</h1>
-        <p className="text-sm text-stone-500">
-          Mock auth for the prototype — production replaces this with Google
-          SSO.
-        </p>
-      </div>
+      <p className="text-sm text-stone-500">
+        Mock auth for the prototype — production replaces this with Google SSO.
+      </p>
 
       <Card className="space-y-3 p-4">
         <h2 className="font-bold text-stone-900">Role</h2>

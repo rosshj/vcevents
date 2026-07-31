@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Keyboard,
   Pencil,
   QrCode,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import {
   canAwardPoints,
   canManageEvents,
@@ -50,6 +50,7 @@ function EventDetail() {
   const [awarded, setAwarded] = useState(0);
   const [editing, setEditing] = useState(false);
   const [version, setVersion] = useState(0);
+  usePageHeader(event?.name ?? "Event", "/events");
 
   useEffect(() => {
     let cancelled = false;
@@ -110,25 +111,15 @@ function EventDetail() {
 
   return (
     <Screen className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/events"
-          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
-          aria-label="Back to events"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-bold text-stone-900">{event.name}</h1>
-          <p className="text-xs text-stone-500">
-            {formatEventDate(event.date)}
-            {timing === "today" && (
-              <Badge variant="green" className="ml-1.5">
-                Today
-              </Badge>
-            )}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-stone-500">
+          {formatEventDate(event.date)}
+          {timing === "today" && (
+            <Badge variant="green" className="ml-1.5">
+              Today
+            </Badge>
+          )}
+        </p>
         <Badge variant={event.tier === "major" ? "default" : "secondary"}>
           {event.tier === "major" ? "Major" : "Minor"}
         </Badge>

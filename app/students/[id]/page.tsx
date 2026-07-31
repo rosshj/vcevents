@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   Check,
   Keyboard,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
+import { usePageHeader } from "@/components/page-header";
 import { canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { formatDateTime, formatEventDate } from "@/lib/format";
@@ -46,6 +46,10 @@ function StudentDetail() {
     "created" | "duplicate" | null
   >(null);
   const [version, setVersion] = useState(0);
+  usePageHeader(
+    student ? `${student.firstName} ${student.lastName}` : "Student",
+    "/students"
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -103,17 +107,6 @@ function StudentDetail() {
 
   return (
     <Screen className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/students"
-          className="rounded-full bg-stone-900/8 p-2.5 text-stone-700 hover:bg-stone-900/15"
-          aria-label="Back to students"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="font-bold text-stone-900">Student</h1>
-      </div>
-
       <Card
         className="overflow-hidden"
         style={{ background: houseTint(color, 8) }}
