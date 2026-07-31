@@ -29,7 +29,6 @@ import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { EventForm } from "@/components/event-form";
 
 const METHOD_META = {
   qr: { label: "QR pass", Icon: QrCode },
@@ -49,7 +48,6 @@ function EventDetail() {
   const [event, setEvent] = useState<SchoolEvent | null>(null);
   const [rows, setRows] = useState<CheckinRow[] | null>(null);
   const [awarded, setAwarded] = useState(0);
-  const [editing, setEditing] = useState(false);
   const [version, setVersion] = useState(0);
   const { openStudent } = useStudentSheet();
   usePageHeader(event?.name ?? "Event", "/events");
@@ -134,53 +132,43 @@ function EventDetail() {
         </Badge>
       </div>
 
-      {editing ? (
-        <EventForm
-          initial={event}
-          onDone={() => {
-            setEditing(false);
-            setVersion((v) => v + 1);
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            <Button size="lg" onClick={() => startOperating("/operate/scan")}>
-              <ScanLine className="h-5 w-5" />
-              Scan
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => startOperating("/operate/manual")}
+      <div className="grid grid-cols-2 gap-2">
+        <Button size="lg" onClick={() => startOperating("/operate/scan")}>
+          <ScanLine className="h-5 w-5" />
+          Scan
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => startOperating("/operate/manual")}
+        >
+          <Search className="h-5 w-5" />
+          Manual
+        </Button>
+      </div>
+      {(canAwardPoints(session.role) || canManageEvents(session.role)) && (
+        <div className="flex gap-2">
+          {canAwardPoints(session.role) && (
+            <Link
+              href={`/events/${event.id}/award`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              <Search className="h-5 w-5" />
-              Manual
-            </Button>
-          </div>
-          {(canAwardPoints(session.role) || canManageEvents(session.role)) && (
-            <div className="flex gap-2">
-              {canAwardPoints(session.role) && (
-                <Link
-                  href={`/events/${event.id}/award`}
-                  className={buttonVariants({ variant: "outline", size: "sm" })}
-                >
-                  <Trophy className="h-4 w-4" />
-                  {awarded > 0
-                    ? `Points awarded: ${awarded} of ${event.pointsPool}`
-                    : `Award points (pool: ${event.pointsPool})`}
-                </Link>
-              )}
-              {canManageEvents(session.role) && (
-                <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-            </div>
+              <Trophy className="h-4 w-4" />
+              {awarded > 0
+                ? `Points awarded: ${awarded} of ${event.pointsPool}`
+                : `Award points (pool: ${event.pointsPool})`}
+            </Link>
           )}
-        </>
+          {canManageEvents(session.role) && (
+            <Link
+              href={`/events/${event.id}/edit`}
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          )}
+        </div>
       )}
 
       <div>

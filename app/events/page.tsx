@@ -10,8 +10,7 @@ import { repo } from "@/lib/repo";
 import { eventTiming, formatEventDate, type EventTiming } from "@/lib/format";
 import type { SchoolEvent } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EventForm } from "@/components/event-form";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EventRow {
@@ -45,8 +44,6 @@ async function fetchRows(): Promise<EventRow[]> {
 function EventsScreen() {
   const { session } = useSession();
   const [rows, setRows] = useState<EventRow[] | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,12 +53,7 @@ function EventsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [version]);
-
-  const closeForm = () => {
-    setCreating(false);
-    setVersion((v) => v + 1);
-  };
+  }, []);
 
   return (
     <Screen className="space-y-5">
@@ -72,15 +64,16 @@ function EventsScreen() {
             Open an event to run check-in and see who&apos;s there.
           </p>
         </div>
-        {canManageEvents(session.role) && !creating && (
-          <Button size="sm" onClick={() => setCreating(true)}>
+        {canManageEvents(session.role) && (
+          <Link
+            href="/events/new"
+            className={buttonVariants({ size: "sm" })}
+          >
             <CalendarPlus className="h-4 w-4" />
             New
-          </Button>
+          </Link>
         )}
       </div>
-
-      {creating && <EventForm onDone={closeForm} onCancel={closeForm} />}
 
       {!rows ? (
         <div className="h-48 animate-pulse rounded-2xl bg-stone-200/60" />

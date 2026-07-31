@@ -1,35 +1,71 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { repo } from "@/lib/repo";
 import { todayString } from "@/lib/format";
 import type { EventTier, SchoolEvent } from "@/lib/types";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+const TIER_META: Record<EventTier, { label: string; hint: string; defaultPool: number }> = {
+  minor: { label: "Minor", hint: "Regular event", defaultPool: 400 },
+  major: { label: "Major", hint: "Big points day", defaultPool: 1000 },
+};
+
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={htmlFor}
+        className="mb-1.5 block text-sm font-semibold text-stone-700"
+      >
+        {label}
+      </label>
+      {children}
+      {hint && <p className="mt-1.5 text-xs text-stone-400">{hint}</p>}
+    </div>
+  );
+}
 
 export function EventForm({
   initial,
-  onDone,
-  onCancel,
+  onSaved,
 }: {
   initial?: SchoolEvent;
-  onDone: () => void;
-  onCancel: () => void;
+  onSaved: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [date, setDate] = useState(initial?.date ?? todayString());
   const [tier, setTier] = useState<EventTier>(initial?.tier ?? "minor");
   const [pointsPool, setPointsPool] = useState(
-    String(initial?.pointsPool ?? 400)
+    String(initial?.pointsPool ?? TIER_META.minor.defaultPool)
   );
+  const [poolTouched, setPoolTouched] = useState(Boolean(initial));
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const pickTier = (t: EventTier) => {
+    setTier(t);
+    // Follow the tier's default pool until the director types their own.
+    if (!poolTouched) setPointsPool(String(TIER_META[t].defaultPool));
+  };
 
   const submit = async () => {
     setError(null);
     if (!name.trim()) {
-      setError("Event name is required.");
+      setError("Give the event a name.");
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -47,50 +83,101 @@ export function EventForm({
     } else {
       await repo.createEvent(payload);
     }
-    onDone();
+    setSaved(true);
+    onSaved();
   };
 
   return (
-    <Card className="space-y-3 p-4">
-      <p className="font-bold text-stone-900">
-        {initial ? "Edit event" : "New event"}
-      </p>
-      <Input
-        placeholder="Event name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        autoFocus
-      />
-      <div className="grid grid-cols-3 gap-2">
+    <div className="space-y-5">
+      <Field label="Name" htmlFor="event-name">
         <Input
+          id="event-name"
+          placeholder="e.g. Terry Fox Run"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus={!initial}
+          className="h-12"
+        />
+      </Field>
+
+      <Field label="Date" htmlFor="event-date">
+        <Input
+          id="event-date"
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          className="h-12 appearance-none"
         />
-        <Select
-          value={tier}
-          onChange={(e) => setTier(e.target.value as EventTier)}
+      </Field>
+
+      <Field label="Tier">
+        <div
+          role="radiogroup"
+          aria-label="Tier"
+          className="grid grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1"
         >
-          <option value="minor">Minor</option>
-          <option value="major">Major</option>
-        </Select>
+          {(Object.keys(TIER_META) as EventTier[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={tier === t}
+              onClick={() => pickTier(t)}
+              className={cn(
+                "rounded-xl px-3 py-2.5 text-center transition-colors",
+                tier === t
+                  ? "bg-white shadow-press"
+                  : "hover:bg-stone-200/60"
+              )}
+            >
+              <span
+                className={cn(
+                  "block text-sm font-semibold",
+                  tier === t ? "text-stone-900" : "text-stone-500"
+                )}
+              >
+                {TIER_META[t].label}
+              </span>
+              <span className="block text-[11px] text-stone-400">
+                {TIER_META[t].hint}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field
+        label="Points pool"
+        htmlFor="event-pool"
+        hint="A guide for awarding afterwards — points are still set by hand."
+      >
         <Input
+          id="event-pool"
           type="number"
           min={0}
-          placeholder="Points pool"
+          inputMode="numeric"
           value={pointsPool}
-          onChange={(e) => setPointsPool(e.target.value)}
+          onChange={(e) => {
+            setPointsPool(e.target.value);
+            setPoolTouched(true);
+          }}
+          className="h-12 tabular-nums"
         />
-      </div>
+      </Field>
+
       {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={submit}>
-          {initial ? "Save changes" : "Create event"}
-        </Button>
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </Card>
+
+      <Button size="lg" className="w-full" onClick={submit} disabled={saved}>
+        {saved ? (
+          <>
+            <Check className="h-5 w-5" /> Saved
+          </>
+        ) : initial ? (
+          "Save changes"
+        ) : (
+          "Create event"
+        )}
+      </Button>
+    </div>
   );
 }

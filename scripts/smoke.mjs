@@ -86,7 +86,7 @@ await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=House Games Assembly");
 check(
   "events: teacher sees list without New button",
-  (await page.locator('button:has-text("New")').count()) === 0
+  (await page.locator('a[href="/events/new"]').count()) === 0
 );
 await page.goto(BASE + "/reports", { waitUntil: "networkidle" });
 check(
@@ -209,9 +209,15 @@ await page.waitForTimeout(300);
 
 await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Welcome Back BBQ");
-await page.click('button:has-text("New")');
-await page.fill('input[placeholder="Event name"]', "Smoke Test Social");
+await page.click('a[href="/events/new"]');
+await page.waitForURL("**/events/new", { timeout: 5000 });
+await page.fill("#event-name", "Smoke Test Social");
+// tier segmented control drives the default pool
+await page.click('[role="radio"]:has-text("Major")');
+const poolVal = await page.inputValue("#event-pool");
+check("events: tier picks default pool", poolVal === "1000", poolVal);
 await page.click('button:has-text("Create event")');
+await page.waitForURL(/\/events$/, { timeout: 5000 });
 await page.waitForSelector("text=Smoke Test Social", { timeout: 5000 });
 check("events: director create works", true);
 

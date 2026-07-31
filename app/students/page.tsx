@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ChevronRight, FileUp, UserPlus, X } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useStudentSheet } from "@/components/student-sheet";
