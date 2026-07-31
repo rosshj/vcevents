@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/session-provider";
 import { MotionProvider } from "@/components/motion-provider";
+import { StudentSheetProvider } from "@/components/student-sheet";
 import { AppShell } from "@/components/app-shell";
 import { APP_NAME, SCHOOL_NAME } from "@/lib/config";
 
@@ -50,7 +51,9 @@ export default function RootLayout({
       <body className="min-h-dvh">
         <SessionProvider>
           <MotionProvider>
-            <AppShell>{children}</AppShell>
+            <StudentSheetProvider>
+              <AppShell>{children}</AppShell>
+            </StudentSheetProvider>
           </MotionProvider>
         </SessionProvider>
       </body>

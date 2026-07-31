@@ -14,6 +14,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import {
@@ -50,7 +51,15 @@ function EventDetail() {
   const [awarded, setAwarded] = useState(0);
   const [editing, setEditing] = useState(false);
   const [version, setVersion] = useState(0);
+  const { openStudent } = useStudentSheet();
   usePageHeader(event?.name ?? "Event", "/events");
+
+  // Refetch when the student sheet checks someone in over this screen.
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, bump);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,9 +253,9 @@ function EventDetail() {
                     style={{ backgroundColor: house?.color ?? "#d6d3d1" }}
                   />
                   {student ? (
-                    <Link
-                      href={`/students/${student.id}`}
-                      className="min-w-0 flex-1"
+                    <button
+                      onClick={() => openStudent(student.id)}
+                      className="min-w-0 flex-1 text-left"
                     >
                       <p className="truncate text-sm font-semibold text-stone-900">
                         {student.firstName} {student.lastName}
@@ -256,7 +265,7 @@ function EventDetail() {
                         {method.label} · {formatTime(checkin.createdAt)} · Gr.{" "}
                         {student.grade}
                       </p>
-                    </Link>
+                    </button>
                   ) : (
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-stone-400">

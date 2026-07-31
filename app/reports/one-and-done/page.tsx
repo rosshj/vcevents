@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useStudentSheet } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import { canViewReports } from "@/lib/permissions";
@@ -19,6 +19,7 @@ interface Row {
 
 function OneAndDoneScreen() {
   const { houseById } = useSession();
+  const { openStudent } = useStudentSheet();
   const [rows, setRows] = useState<Row[] | null>(null);
   usePageHeader("One-and-done", "/reports");
 
@@ -109,12 +110,12 @@ function OneAndDoneScreen() {
                         className="border-b border-stone-100 last:border-0"
                       >
                         <td className="px-3 py-2 font-medium text-stone-900">
-                          <Link
-                            href={`/students/${s.id}`}
-                            className="hover:underline"
+                          <button
+                            onClick={() => openStudent(s.id)}
+                            className="text-left hover:underline"
                           >
                             {s.lastName}, {s.firstName}
-                          </Link>
+                          </button>
                         </td>
                         <td className="px-3 py-2">
                           <span className="inline-flex items-center gap-1.5 text-stone-600">

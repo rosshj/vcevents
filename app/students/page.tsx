@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, FileUp, UserPlus, X } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { useStudentSheet } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { canImportCsv, canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -159,6 +160,7 @@ function CsvImportCard({ onDone }: { onDone: () => void }) {
 
 function StudentsScreen() {
   const { session, houseById } = useSession();
+  const { openStudent } = useStudentSheet();
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[] | null>(null);
@@ -271,10 +273,10 @@ function StudentsScreen() {
             {shown.map((s) => {
               const house = houseById(s.houseId);
               return (
-                <Link
+                <button
                   key={s.id}
-                  href={`/students/${s.id}`}
-                  className="flex items-center gap-3 border-b border-stone-100 px-4 py-2.5 last:border-0 hover:bg-stone-50"
+                  onClick={() => openStudent(s.id)}
+                  className="flex w-full items-center gap-3 border-b border-stone-100 px-4 py-2.5 text-left last:border-0 hover:bg-stone-50"
                 >
                   <span
                     className="h-3 w-3 shrink-0 rounded-full"
@@ -294,7 +296,7 @@ function StudentsScreen() {
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
-                </Link>
+                </button>
               );
             })}
           </div>
