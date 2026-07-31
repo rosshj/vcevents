@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Drawer } from "vaul";
 import { FileUp } from "lucide-react";
 import { useSession } from "@/components/session-provider";
@@ -99,6 +99,26 @@ export function FormSheetProvider({ children }: { children: React.ReactNode }) {
     setOpen(true);
   }, []);
 
+  // iOS pans the layout viewport to chase a focused input inside the fixed
+  // drawer, shoving the whole sheet under the status bar. While a form
+  // sheet is open the page behind needs no scrolling, so pin the viewport
+  // back whenever the keyboard tries to move it.
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    const pin = () => {
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+    };
+    window.addEventListener("scroll", pin, true);
+    vv?.addEventListener("resize", pin);
+    vv?.addEventListener("scroll", pin);
+    return () => {
+      window.removeEventListener("scroll", pin, true);
+      vv?.removeEventListener("resize", pin);
+      vv?.removeEventListener("scroll", pin);
+    };
+  }, [open]);
+
   const openEventForm = useCallback(
     (initial?: SchoolEvent) => openWith({ kind: "event", initial }),
     [openWith]
@@ -137,13 +157,28 @@ export function FormSheetProvider({ children }: { children: React.ReactNode }) {
           <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40" />
           <Drawer.Content
             aria-describedby={undefined}
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[94dvh] flex-col rounded-t-[2rem] bg-white outline-none"
+            // Full height: fields sit near the top of the screen, above
+            // where the keyboard lands, instead of hugging the bottom edge.
+            className="fixed inset-x-0 bottom-0 z-50 flex h-[93dvh] flex-col rounded-t-[2rem] bg-white outline-none"
           >
             <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-stone-300" />
             <Drawer.Title className="px-5 pb-1 pt-3 text-lg font-bold text-stone-900">
               {title}
             </Drawer.Title>
-            <div className="overflow-y-auto px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-2">
+            <div
+              className="flex-1 overflow-y-auto px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-2"
+              // Bring the tapped field into view within the sheet's own
+              // scroller once the keyboard has settled.
+              onFocusCapture={(e) => {
+                const el = e.target as HTMLElement;
+                if (el.matches?.("input, textarea")) {
+                  setTimeout(
+                    () => el.scrollIntoView({ block: "center", behavior: "smooth" }),
+                    350
+                  );
+                }
+              }}
+            >
               {sheet?.kind === "event" && (
                 <EventForm initial={sheet.initial} onSaved={saved} />
               )}
