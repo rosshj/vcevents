@@ -84,35 +84,41 @@ function PassScreen() {
         </p>
       </div>
 
-      <div
-        key={windowNo}
-        className="animate-pass-refresh mt-5 w-full max-w-72 rounded-[2.5rem] bg-white p-4 shadow-float"
-      >
-        {qrUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={qrUrl}
-            alt="Your check-in QR code"
-            className="aspect-square w-full"
-          />
-        ) : (
-          <div className="aspect-square w-full animate-pulse rounded-2xl bg-stone-100" />
-        )}
-      </div>
-
-      <div className="mt-3 w-full max-w-72 px-2">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
-          <div
-            className="h-full rounded-full bg-white transition-[width] duration-300 ease-linear"
-            style={{ width: `${(msLeft / 60000) * 100}%` }}
-          />
+      {/* Flexible middle region: the QR group centers in whatever space is
+          left between the name block and the bottom cards. */}
+      <div className="flex w-full flex-1 flex-col items-center justify-center py-4">
+        <div
+          key={windowNo}
+          className="animate-pass-refresh w-full rounded-[2.5rem] bg-white p-4 shadow-float"
+          // Shrink on short screens so the pass stays one-screen.
+          style={{ maxWidth: "min(18rem, 42dvh)" }}
+        >
+          {qrUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrUrl}
+              alt="Your check-in QR code"
+              className="aspect-square w-full"
+            />
+          ) : (
+            <div className="aspect-square w-full animate-pulse rounded-2xl bg-stone-100" />
+          )}
         </div>
-        <p className="mt-1.5 text-center text-xs font-medium text-white/80">
-          Code refreshes in {secondsLeft}s
-        </p>
+
+        <div className="mt-3 w-full max-w-72 px-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+            <div
+              className="h-full rounded-full bg-white transition-[width] duration-300 ease-linear"
+              style={{ width: `${(msLeft / 60000) * 100}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-center text-xs font-medium text-white/80">
+            Code refreshes in {secondsLeft}s
+          </p>
+        </div>
       </div>
 
-      <div className="mt-4 w-full max-w-72 space-y-2">
+      <div className="w-full max-w-72 space-y-2">
         <div className="flex items-center gap-2.5 rounded-3xl bg-white/15 px-4 py-3 text-white backdrop-blur">
           <CalendarDays className="h-5 w-5 shrink-0 opacity-90" />
           {todaysEvent ? (
