@@ -262,7 +262,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      <OperatingPill />
+      {/* Only on root tabs — focused sub-pages (forms, drill-ins) keep a
+          clean stage; the back button already anchors navigation there. */}
+      {!pageHeader && <OperatingPill />}
     </div>
     </PageHeaderContext.Provider>
   );
