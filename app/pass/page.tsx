@@ -98,17 +98,18 @@ function PassScreen() {
         ) : (
           <div className="aspect-square w-full animate-pulse rounded-2xl bg-stone-100" />
         )}
-        <div className="mt-2 px-1">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
-            <div
-              className="h-full rounded-full bg-stone-800 transition-[width] duration-300 ease-linear"
-              style={{ width: `${(msLeft / 60000) * 100}%` }}
-            />
-          </div>
-          <p className="mt-1.5 text-center text-xs font-medium text-stone-500">
-            Code refreshes in {secondsLeft}s
-          </p>
+      </div>
+
+      <div className="mt-3 w-full max-w-72 px-2">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+          <div
+            className="h-full rounded-full bg-white transition-[width] duration-300 ease-linear"
+            style={{ width: `${(msLeft / 60000) * 100}%` }}
+          />
         </div>
+        <p className="mt-1.5 text-center text-xs font-medium text-white/80">
+          Code refreshes in {secondsLeft}s
+        </p>
       </div>
 
       <div className="mt-4 w-full max-w-72 space-y-2">
