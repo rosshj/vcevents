@@ -3,8 +3,6 @@
 :root {
   --background: #ffffff;
   --foreground: #292524;
-  /* Corrective offset for the iOS standalone launch viewport mis-measure. */
-  --vv-gap: 0px;
 }
 
 @theme inline {

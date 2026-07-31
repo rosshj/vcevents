@@ -70,10 +70,7 @@ function OperatingPill() {
   }, [ready, session.activeEventId, session.role]);
 
   return (
-    <div
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.9rem)] z-40 flex justify-center px-4 transition-transform duration-300"
-      style={{ transform: "translateY(var(--vv-gap))" }}
-    >
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.9rem)] z-40 flex justify-center px-4">
       <AnimatePresence>
         {event && (
           <motion.div
@@ -125,30 +122,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // Standalone launch quirk: iOS sizes the layout viewport too short until
-  // the first scroll gesture, so fixed bottom-anchored elements float too
-  // high. Measure the true height via VisualViewport, publish the gap as
-  // --vv-gap (nav + pill translate down by it), and keep it updated until
-  // iOS corrects itself.
+  // the first scroll gesture. The page often isn't scrollable at rest, so a
+  // plain scrollTo is a no-op — make it scrollable for one invisible frame,
+  // nudge, and restore. Runs twice in case the first fires too early.
   useEffect(() => {
     if (!window.matchMedia("(display-mode: standalone)").matches) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const root = document.documentElement;
-    const apply = () => {
-      const gap = Math.max(0, Math.round(vv.height - root.clientHeight));
-      root.style.setProperty("--vv-gap", `${gap}px`);
+    const nudge = () => {
+      const body = document.body;
+      const prevMinHeight = body.style.minHeight;
+      body.style.minHeight = "calc(100vh + 2px)";
+      window.scrollTo(0, 1);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        body.style.minHeight = prevMinHeight;
+      });
     };
-    apply();
-    // Some launches settle late; re-check a few times, then track events.
-    const timers = [250, 600, 1200].map((ms) => setTimeout(apply, ms));
-    vv.addEventListener("resize", apply);
-    window.addEventListener("resize", apply);
-    return () => {
-      timers.forEach(clearTimeout);
-      vv.removeEventListener("resize", apply);
-      window.removeEventListener("resize", apply);
-      root.style.removeProperty("--vv-gap");
-    };
+    nudge();
+    const t = setTimeout(nudge, 400);
+    return () => clearTimeout(t);
   }, []);
 
   // The scanner runs full-screen with its own exit affordances.
@@ -210,10 +201,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 pb-32">{children}</main>
 
-      <nav
-        className="pointer-events-none fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),1rem)] z-40 flex justify-center px-4 transition-transform duration-300"
-        style={{ transform: "translateY(var(--vv-gap))" }}
-      >
+      <nav className="pointer-events-none fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),1rem)] z-40 flex justify-center px-4">
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-white/70 p-1.5 shadow-float backdrop-blur-xl">
           {nav.map((item) => {
             const active =
