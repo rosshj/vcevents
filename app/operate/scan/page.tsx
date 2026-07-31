@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CameraOff,
   Check,
@@ -288,22 +289,29 @@ function ScannerScreen() {
         )}
 
         {/* Result overlays */}
-        {overlay && (
-          <ScanOverlay
-            overlay={overlay}
-            houseColor={
-              overlay.kind !== "unknown"
-                ? houseById(overlay.student.houseId)?.color
-                : undefined
-            }
-            houseName={
-              overlay.kind !== "unknown"
-                ? houseById(overlay.student.houseId)?.name
-                : undefined
-            }
-            onDismiss={() => setOverlay(null)}
-          />
-        )}
+        <AnimatePresence>
+          {overlay && (
+            <ScanOverlay
+              key={
+                overlay.kind === "unknown"
+                  ? `unknown-${overlay.code}`
+                  : `${overlay.kind}-${overlay.student.id}`
+              }
+              overlay={overlay}
+              houseColor={
+                overlay.kind !== "unknown"
+                  ? houseById(overlay.student.houseId)?.color
+                  : undefined
+              }
+              houseName={
+                overlay.kind !== "unknown"
+                  ? houseById(overlay.student.houseId)?.name
+                  : undefined
+              }
+              onDismiss={() => setOverlay(null)}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Bottom bar */}
@@ -354,9 +362,19 @@ function ScanOverlay({
 }) {
   const router = useRouter();
 
+  const motionProps = {
+    initial: { opacity: 0, scale: 0.94 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, transition: { duration: 0.1 } },
+    transition: { type: "spring", stiffness: 600, damping: 40 },
+  } as const;
+
   if (overlay.kind === "unknown") {
     return (
-      <div className="animate-scan-pop absolute inset-0 flex flex-col items-center justify-center gap-3 bg-red-700/95 px-8 text-center">
+      <motion.div
+        {...motionProps}
+        className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-red-700/95 px-8 text-center"
+      >
         <TriangleAlert className="h-14 w-14" />
         <p className="text-2xl font-black">Code not recognized</p>
         <p className="break-all text-sm text-white/80">{overlay.code}</p>
@@ -372,16 +390,17 @@ function ScanOverlay({
         <button className="text-sm text-white/70 underline" onClick={onDismiss}>
           Keep scanning
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   const { student } = overlay;
   const isDup = overlay.kind === "duplicate";
   return (
-    <div
+    <motion.div
+      {...motionProps}
       className={cn(
-        "animate-scan-pop absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center",
+        "absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center",
         isDup ? "bg-amber-500/95 text-stone-900" : "bg-emerald-600/95 text-white"
       )}
       onClick={onDismiss}
@@ -413,7 +432,7 @@ function ScanOverlay({
           {houseName}
         </span>
       )}
-    </div>
+    </motion.div>
   );
 }
 

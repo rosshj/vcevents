@@ -183,7 +183,8 @@ await page.goto(BASE + "/leaderboard", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Scanning ·");
 check("operating pill: shows while operating", true);
 await page.click('button[aria-label="Stop operating this event"]');
-await page.waitForTimeout(400);
+// allow the exit animation to finish before asserting removal
+await page.waitForTimeout(900);
 check(
   "operating pill: stop clears it",
   (await page.locator("text=Scanning ·").count()) === 0

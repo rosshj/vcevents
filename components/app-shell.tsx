@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useSession } from "@/components/session-provider";
 import { repo } from "@/lib/repo";
 import { APP_NAME } from "@/lib/config";
@@ -68,26 +69,39 @@ function OperatingPill() {
     };
   }, [ready, session.activeEventId, session.role]);
 
-  if (!event) return null;
-
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.9rem)] z-40 flex justify-center px-4">
-      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full bg-stone-900 py-1 pl-3 pr-1 text-white shadow-float">
-        <Link
-          href="/operate/scan"
-          className="flex min-w-0 items-center gap-2 py-1 text-xs font-semibold"
-        >
-          <ScanLine className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">Scanning · {event.name}</span>
-        </Link>
-        <button
-          onClick={() => setActiveEventId(null)}
-          aria-label="Stop operating this event"
-          className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      <AnimatePresence>
+        {event && (
+          <motion.div
+            initial={{ opacity: 0, y: 14, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{
+              opacity: 0,
+              y: 14,
+              scale: 0.95,
+              transition: { duration: 0.15 },
+            }}
+            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+            className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full bg-stone-900 py-1 pl-3 pr-1 text-white shadow-float"
+          >
+            <Link
+              href="/operate/scan"
+              className="flex min-w-0 items-center gap-2 py-1 text-xs font-semibold"
+            >
+              <ScanLine className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Scanning · {event.name}</span>
+            </Link>
+            <button
+              onClick={() => setActiveEventId(null)}
+              aria-label="Stop operating this event"
+              className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -188,14 +202,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 rounded-full px-4 py-2 text-[10px] font-semibold transition-colors",
-                  active
-                    ? "bg-stone-900 text-white shadow-soft"
-                    : "text-stone-500 hover:text-stone-800"
+                  "relative flex flex-col items-center gap-0.5 rounded-full px-4 py-2 text-[10px] font-semibold transition-colors duration-200",
+                  active ? "text-white" : "text-stone-500 hover:text-stone-800"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "stroke-[2.25]")} />
-                {item.label}
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    className="absolute inset-0 rounded-full bg-stone-900 shadow-soft"
+                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                  />
+                )}
+                <Icon
+                  className={cn("relative z-10 h-5 w-5", active && "stroke-[2.25]")}
+                />
+                <span className="relative z-10">{item.label}</span>
               </Link>
             );
           })}

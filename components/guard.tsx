@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ShieldAlert } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -59,10 +60,13 @@ export function Screen({
   className?: string;
 }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
       className={`mx-auto w-full ${wide ? "max-w-2xl" : "max-w-md"} px-5 py-4 ${className}`}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/session-provider";
+import { MotionProvider } from "@/components/motion-provider";
 import { AppShell } from "@/components/app-shell";
 import { APP_NAME, SCHOOL_NAME } from "@/lib/config";
 
@@ -48,7 +49,9 @@ export default function RootLayout({
     >
       <body className="min-h-dvh">
         <SessionProvider>
-          <AppShell>{children}</AppShell>
+          <MotionProvider>
+            <AppShell>{children}</AppShell>
+          </MotionProvider>
         </SessionProvider>
       </body>
     </html>
