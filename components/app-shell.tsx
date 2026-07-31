@@ -107,6 +107,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     useSession();
   const pathname = usePathname();
 
+  // Standalone launch quirk: iOS can mis-measure the viewport until the
+  // first scroll, leaving bottom-anchored elements floating too high. A
+  // 1px scroll nudge forces the re-measure immediately.
+  useEffect(() => {
+    if (!window.matchMedia("(display-mode: standalone)").matches) return;
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 1);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, []);
+
   // The scanner runs full-screen with its own exit affordances.
   const immersive = pathname === "/operate/scan";
 

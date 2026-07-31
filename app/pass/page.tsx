@@ -67,7 +67,10 @@ function PassScreen() {
   return (
     <div
       className="-mb-32 flex min-h-dvh flex-col items-center px-4 pb-36 pt-[calc(env(safe-area-inset-top)+5.25rem)]"
-      style={{ background: `linear-gradient(180deg, ${color} 0%, color-mix(in srgb, ${color} 78%, black) 100%)` }}
+      // Flat, not a gradient: the canvas (html/body) is painted this same
+      // color, so iOS viewport mis-measures at standalone launch can't
+      // expose a mismatched seam at the screen edges.
+      style={{ backgroundColor: color }}
     >
       <div className="w-full max-w-md text-center text-white">
         <p className="text-sm font-medium uppercase tracking-widest opacity-80">
