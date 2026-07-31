@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, FileUp, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useStudentSheet } from "@/components/student-sheet";
+import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canImportCsv, canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -24,6 +25,33 @@ function StudentsScreen() {
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[] | null>(null);
   const [total, setTotal] = useState(0);
+  usePageChrome({
+    title: "Students",
+    subtitle: total ? `${total} students` : undefined,
+    actions: useMemo(
+      () => (
+        <>
+          <Link
+            href="/students/new"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <UserPlus className="h-4 w-4" />
+            Add
+          </Link>
+          {canImportCsv(session.role) && (
+            <Link
+              href="/students/import"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <FileUp className="h-4 w-4" />
+              CSV
+            </Link>
+          )}
+        </>
+      ),
+      [session.role]
+    ),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -44,31 +72,6 @@ function StudentsScreen() {
 
   return (
     <Screen className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-stone-900">Students</h1>
-          <p className="text-sm text-stone-500">{total} students</p>
-        </div>
-        <div className="flex gap-1.5">
-          <Link
-            href="/students/new"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <UserPlus className="h-4 w-4" />
-            Add
-          </Link>
-          {canImportCsv(session.role) && (
-            <Link
-              href="/students/import"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              <FileUp className="h-4 w-4" />
-              CSV
-            </Link>
-          )}
-        </div>
-      </div>
-
       <Input
         placeholder="Search name or student number…"
         value={query}

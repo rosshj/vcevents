@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CalendarPlus, ChevronRight, ScanLine } from "lucide-react";
+import { useMemo } from "react";
 import { useSession } from "@/components/session-provider";
+import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canManageEvents, canViewEvents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -44,6 +46,20 @@ async function fetchRows(): Promise<EventRow[]> {
 function EventsScreen() {
   const { session } = useSession();
   const [rows, setRows] = useState<EventRow[] | null>(null);
+  usePageChrome({
+    title: "Events",
+    subtitle: "Open an event to run check-in and see who's there.",
+    actions: useMemo(
+      () =>
+        canManageEvents(session.role) ? (
+          <Link href="/events/new" className={buttonVariants({ size: "sm" })}>
+            <CalendarPlus className="h-4 w-4" />
+            New
+          </Link>
+        ) : undefined,
+      [session.role]
+    ),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -57,24 +73,6 @@ function EventsScreen() {
 
   return (
     <Screen className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-stone-900">Events</h1>
-          <p className="text-sm text-stone-500">
-            Open an event to run check-in and see who&apos;s there.
-          </p>
-        </div>
-        {canManageEvents(session.role) && (
-          <Link
-            href="/events/new"
-            className={buttonVariants({ size: "sm" })}
-          >
-            <CalendarPlus className="h-4 w-4" />
-            New
-          </Link>
-        )}
-      </div>
-
       {!rows ? (
         <div className="h-48 animate-pulse rounded-2xl bg-stone-200/60" />
       ) : (

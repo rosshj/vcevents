@@ -159,22 +159,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <PageHeaderContext.Provider value={headerCtx}>
     <div className="flex min-h-dvh flex-col">
-      {/* Root tabs render their own title block as the header; only
-          drill-in sub-pages get a sticky bar (back + title). */}
+      {/* Sticky frosted header: root tabs show title/subtitle/actions,
+          drill-in sub-pages show back + compact title. Screens that never
+          register chrome (the pass) stay headerless. */}
       {pageHeader && (
         <header className="sticky top-0 z-40 bg-[--background]/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-          <div className="mx-auto flex h-14 w-full max-w-md items-center gap-1 px-5">
-            <Link
-              href={pageHeader.backHref}
-              aria-label="Back"
-              className="-ml-2.5 rounded-full p-2 text-stone-700 hover:bg-stone-900/8"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Link>
-            <h1 className="min-w-0 truncate text-[17px] font-bold text-stone-900">
-              {pageHeader.title}
-            </h1>
-          </div>
+          {pageHeader.backHref ? (
+            <div className="mx-auto flex h-14 w-full max-w-md items-center gap-1 px-5">
+              <Link
+                href={pageHeader.backHref}
+                aria-label="Back"
+                className="-ml-2.5 rounded-full p-2 text-stone-700 hover:bg-stone-900/8"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Link>
+              <h1 className="min-w-0 truncate text-[17px] font-bold text-stone-900">
+                {pageHeader.title}
+              </h1>
+            </div>
+          ) : (
+            <div className="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-5 pb-3 pt-4">
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-black tracking-tight text-stone-900">
+                  {pageHeader.title}
+                </h1>
+                {pageHeader.subtitle && (
+                  <p className="mt-0.5 text-sm text-stone-500">
+                    {pageHeader.subtitle}
+                  </p>
+                )}
+              </div>
+              {pageHeader.actions && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {pageHeader.actions}
+                </div>
+              )}
+            </div>
+          )}
         </header>
       )}
 
@@ -223,7 +244,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Only on root tabs — focused sub-pages (forms, drill-ins) keep a
           clean stage; the back button already anchors navigation there. */}
-      {!pageHeader && <OperatingPill />}
+      {!pageHeader?.backHref && <OperatingPill />}
     </div>
     </PageHeaderContext.Provider>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Sparkles, Trophy } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { repo } from "@/lib/repo";
 import { formatEventDate } from "@/lib/format";
@@ -19,6 +20,7 @@ interface Row {
 
 function MyPoints() {
   const { currentStudent, houseById } = useSession();
+  usePageChrome({ title: "My Points" });
   const [rows, setRows] = useState<Row[] | null>(null);
   const [housePoints, setHousePoints] = useState<number>(0);
 
@@ -61,7 +63,6 @@ function MyPoints() {
 
   return (
     <Screen className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-stone-900">My Points</h1>
       <div
         className="rounded-3xl p-5 text-white shadow-sm"
         style={{ background: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 70%, black))` }}

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Screen } from "@/components/guard";
+import { usePageChrome } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 
 const ROLES: Role[] = [
@@ -194,6 +195,10 @@ export default function DevPage() {
     setStaffId,
   } = useSession();
   const [resetting, setResetting] = useState(false);
+  usePageChrome({
+    title: "Me",
+    subtitle: "Mock auth for the prototype — production replaces this with Google SSO.",
+  });
 
   const handleReset = useCallback(async () => {
     if (!window.confirm("Reset all data back to the seeded state?")) return;
@@ -208,14 +213,6 @@ export default function DevPage() {
 
   return (
     <Screen className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-stone-900">Me</h1>
-        <p className="text-sm text-stone-500">
-          Mock auth for the prototype — production replaces this with Google
-          SSO.
-        </p>
-      </div>
-
       <Card className="space-y-3 p-4">
         <h2 className="font-bold text-stone-900">Role</h2>
         <div className="grid grid-cols-2 gap-2">

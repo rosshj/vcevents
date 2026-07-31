@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
+import { usePageChrome } from "@/components/page-header";
 import { repo } from "@/lib/repo";
 import type { LeaderboardRow } from "@/lib/types";
 import { Screen } from "@/components/guard";
@@ -10,6 +11,10 @@ import { houseTint } from "@/lib/config";
 
 export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
+  usePageChrome({
+    title: "House Standings",
+    subtitle: "Points awarded so far this year",
+  });
 
   useEffect(() => {
     void repo.leaderboard().then(setRows);
@@ -29,11 +34,6 @@ export default function LeaderboardPage() {
 
   return (
     <Screen className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-stone-900">House Standings</h1>
-        <p className="text-sm text-stone-500">Points awarded so far this year</p>
-      </div>
-
       <motion.div
         className="space-y-3"
         initial="hidden"

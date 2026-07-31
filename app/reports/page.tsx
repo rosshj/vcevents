@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ClipboardList, UserX } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canViewReports } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
@@ -70,6 +71,10 @@ function RateRow({
 function ReportsScreen() {
   const { houses } = useSession();
   const [data, setData] = useState<ReportData | null>(null);
+  usePageChrome({
+    title: "Reports",
+    subtitle: "Participation this year — points stay human-decided.",
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -138,13 +143,6 @@ function ReportsScreen() {
 
   return (
     <Screen className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-stone-900">Reports</h1>
-        <p className="text-sm text-stone-500">
-          Participation this year — points stay human-decided.
-        </p>
-      </div>
-
       <Card className="p-5">
         <p className="text-4xl font-black tabular-nums text-stone-900">
           {pct(data.participated, data.totalStudents)}%
