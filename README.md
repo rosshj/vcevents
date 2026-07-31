@@ -73,6 +73,10 @@ Role gates mirror production:
   event being operated).
 - **Director — Reports**: `/reports` (participation rate overall, by grade
   and house, per-event attendance) with drill-downs to
-  `/reports/uninvolved` and `/reports/one-and-done`.
+  `/reports/uninvolved` and `/reports/one-and-done`. Charts (check-ins per
+  event, house share rings, grade-engagement radar) use
+  [Bklit UI](https://github.com/bklit/bklit-ui), vendored under
+  `components/bklit/` (MIT) because the shadcn registry endpoint isn't
+  reachable from the dev environment.
 - `/events/[id]/award`: check-in breakdown as the input; points are always
   human-decided; note required.

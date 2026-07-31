@@ -283,9 +283,17 @@ await page.screenshot({ path: SHOTS + "/11-student-detail.png" });
 // ---- Reports hub + drill-downs
 await page.goto(BASE + "/reports", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Participation by grade");
+await page.waitForSelector("text=Check-ins per event", { timeout: 10000 });
+await page.waitForTimeout(1500); // chart enter animations
 const repText = await page.textContent("body");
 check("reports: hub has house participation", repText.includes("Participation by house"));
 check("reports: hub links to nudge lists", repText.includes("One-and-done"));
+check(
+  "reports: bklit charts render",
+  (await page.locator("svg").count()) >= 3 &&
+    repText.includes("Check-ins by house") &&
+    repText.includes("House engagement by grade")
+);
 await page.screenshot({ path: SHOTS + "/12-reports.png" });
 await page.click("text=Uninvolved students");
 await page.waitForURL("**/reports/uninvolved", { timeout: 5000 });

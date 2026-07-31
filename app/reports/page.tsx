@@ -9,16 +9,25 @@ import { Guard, Screen } from "@/components/guard";
 import { canViewReports } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { GRADES, houseTint } from "@/lib/config";
-import { eventTiming, formatEventDate } from "@/lib/format";
+import { eventTiming, formatEventDate, parseLocalDate } from "@/lib/format";
 import type { House, SchoolEvent } from "@/lib/types";
 import { Card } from "@/components/ui/card";
+import {
+  chartHouseOrder,
+  EventAttendanceChart,
+  GradeRadar,
+  HouseShareRings,
+} from "@/components/report-charts";
 
 interface ReportData {
   totalStudents: number;
   participated: number;
   oneAndDone: number;
+  totalCheckins: number;
   byGrade: { grade: number; total: number; participated: number }[];
   byHouse: { house: House; total: number; participated: number }[];
+  houseCheckins: { house: House; count: number }[];
+  gradeRates: Record<string, Record<number, number>>;
   pastEvents: { event: SchoolEvent; count: number }[];
 }
 
@@ -116,13 +125,42 @@ function ReportsScreen() {
         .filter(({ event }) => eventTiming(event.date) !== "future")
         .sort((a, b) => b.event.date.localeCompare(a.event.date))
         .map(({ event, checkins }) => ({ event, count: checkins.length }));
+      const houseOf = new Map(students.map((s) => [s.id, s.houseId]));
+      const checkinsByHouse = new Map<string, number>();
+      let totalCheckins = 0;
+      for (const { checkins } of perEvent) {
+        for (const c of checkins) {
+          totalCheckins++;
+          const hid = houseOf.get(c.studentId);
+          if (hid) checkinsByHouse.set(hid, (checkinsByHouse.get(hid) ?? 0) + 1);
+        }
+      }
+      const orderedHouses = chartHouseOrder(houses);
+      const houseCheckins = orderedHouses.map((house) => ({
+        house,
+        count: checkinsByHouse.get(house.id) ?? 0,
+      }));
+      const gradeRates: Record<string, Record<number, number>> = {};
+      for (const house of houses) {
+        gradeRates[house.id] = {};
+        for (const grade of GRADES) {
+          const cohort = students.filter(
+            (s) => s.houseId === house.id && s.grade === grade
+          );
+          const active = cohort.filter((s) => participatedIds.has(s.id)).length;
+          gradeRates[house.id][grade] = pct(active, cohort.length);
+        }
+      }
       if (cancelled) return;
       setData({
         totalStudents: students.length,
         participated: participatedIds.size,
         oneAndDone: [...countByStudent.values()].filter((n) => n === 1).length,
+        totalCheckins,
         byGrade,
         byHouse,
+        houseCheckins,
+        gradeRates,
         pastEvents,
       });
     })();
@@ -152,6 +190,53 @@ function ReportsScreen() {
           {data.participated} of {data.totalStudents})
         </p>
       </Card>
+
+      <div>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+          Check-ins per event
+        </h2>
+        <Card className="p-4 pt-5">
+          <EventAttendanceChart
+            events={(() => {
+              const seen = new Map<string, number>();
+              return [...data.pastEvents].reverse().map(({ event, count }) => {
+                const base = parseLocalDate(event.date).toLocaleDateString(
+                  "en-CA",
+                  { month: "short", day: "numeric" }
+                );
+                // Two events can share a date; labels double as chart keys.
+                const n = (seen.get(base) ?? 0) + 1;
+                seen.set(base, n);
+                return {
+                  label: n > 1 ? `${base} (${n})` : base,
+                  checkins: count,
+                };
+              });
+            })()}
+          />
+        </Card>
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+          Check-ins by house
+        </h2>
+        <Card className="p-5">
+          <HouseShareRings rows={data.houseCheckins} total={data.totalCheckins} />
+        </Card>
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+          House engagement by grade
+        </h2>
+        <Card className="p-5">
+          <GradeRadar
+            houses={data.houseCheckins.map((r) => r.house)}
+            rates={data.gradeRates}
+          />
+        </Card>
+      </div>
 
       <div>
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">

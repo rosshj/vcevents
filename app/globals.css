@@ -3,6 +3,39 @@
 :root {
   --background: #ffffff;
   --foreground: #292524;
+
+  /* Theme tokens for the vendored Bklit charts (components/bklit), mapped
+     to the app's stone palette. --chart-1..4 follow the validated house
+     display order (Aquinas, Loyola, Brebeuf, Xavier). */
+  --border: #e7e5e4;
+  --chart-background: #ffffff;
+  --chart-foreground: #292524;
+  --chart-foreground-muted: #a8a29e;
+  --chart-label: #78716c;
+  --chart-grid: #e7e5e4;
+  --chart-line-primary: #44403c;
+  --chart-line-secondary: #a8a29e;
+  --chart-tooltip-background: #ffffff;
+  --chart-segment-background: #f5f5f4;
+  --chart-segment-line: #d6d3d1;
+  --chart-indicator-color: #44403c;
+  --chart-indicator-secondary-color: #a8a29e;
+  --chart-marker-background: #ffffff;
+  --chart-marker-border: #e7e5e4;
+  --chart-marker-foreground: #292524;
+  --chart-marker-badge-background: #292524;
+  --chart-marker-badge-foreground: #ffffff;
+  --chart-1: #b91c1c;
+  --chart-2: #047857;
+  --chart-3: #1d4ed8;
+  --chart-4: #b45309;
+  --chart-5: #78716c;
+  --legend: #ffffff;
+  --legend-foreground: #292524;
+  --legend-muted: #f5f5f4;
+  --legend-muted-foreground: #78716c;
+  --legend-track: #e7e5e4;
+  --color-zinc-500: #78716c;
 }
 
 @theme inline {
