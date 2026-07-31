@@ -7,37 +7,12 @@ import { todayString } from "@/lib/format";
 import type { EventTier, SchoolEvent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Field, Segmented } from "@/components/ui/field";
 
 const TIER_META: Record<EventTier, { label: string; hint: string; defaultPool: number }> = {
   minor: { label: "Minor", hint: "Regular event", defaultPool: 400 },
   major: { label: "Major", hint: "Big points day", defaultPool: 1000 },
 };
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={htmlFor}
-        className="mb-1.5 block text-sm font-semibold text-stone-700"
-      >
-        {label}
-      </label>
-      {children}
-      {hint && <p className="mt-1.5 text-xs text-stone-400">{hint}</p>}
-    </div>
-  );
-}
 
 export function EventForm({
   initial,
@@ -111,39 +86,16 @@ export function EventForm({
       </Field>
 
       <Field label="Tier">
-        <div
-          role="radiogroup"
-          aria-label="Tier"
-          className="grid grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1"
-        >
-          {(Object.keys(TIER_META) as EventTier[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={tier === t}
-              onClick={() => pickTier(t)}
-              className={cn(
-                "rounded-xl px-3 py-2.5 text-center transition-colors",
-                tier === t
-                  ? "bg-white shadow-press"
-                  : "hover:bg-stone-200/60"
-              )}
-            >
-              <span
-                className={cn(
-                  "block text-sm font-semibold",
-                  tier === t ? "text-stone-900" : "text-stone-500"
-                )}
-              >
-                {TIER_META[t].label}
-              </span>
-              <span className="block text-[11px] text-stone-400">
-                {TIER_META[t].hint}
-              </span>
-            </button>
-          ))}
-        </div>
+        <Segmented
+          ariaLabel="Tier"
+          value={tier}
+          onChange={pickTier}
+          options={(Object.keys(TIER_META) as EventTier[]).map((t) => ({
+            value: t,
+            label: TIER_META[t].label,
+            sub: TIER_META[t].hint,
+          }))}
+        />
       </Field>
 
       <Field

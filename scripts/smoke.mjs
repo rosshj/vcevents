@@ -241,28 +241,33 @@ check("award: leaderboard updated", (await page.textContent("body")).includes("5
 await page.goto(BASE + "/students", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Students");
 check("students: total ~600", /\d{3} students/.test(await page.textContent("body")));
-await page.click('button:has-text("CSV")');
-await page.fill("textarea", "Testy,McTestface,9,Loyola,999111");
+await page.click('a[href="/students/import"]');
+await page.waitForURL("**/students/import", { timeout: 5000 });
+await page.fill("#csv", "Testy,McTestface,9,Loyola,999111");
 await page.click('button:has-text("Import")');
 await page.waitForSelector("text=Imported 1 student", { timeout: 5000 });
 check("students: CSV import works", true);
+await page.goto(BASE + "/students", { waitUntil: "networkidle" });
 await page.fill('input[placeholder*="Search name"]', "McTestface");
 await page.waitForTimeout(600);
 check(
   "students: imported student searchable",
   (await page.textContent("body")).includes("McTestface")
 );
-await page.click('button:has-text("Add")');
-await page.fill('input[placeholder="First name"]', "Pendy");
-await page.fill('input[placeholder="Last name"]', "Pendington");
-await page.fill('input[placeholder="6-digit #"]', "999222");
+await page.click('a[href="/students/new"]');
+await page.waitForURL("**/students/new", { timeout: 5000 });
+await page.fill("#student-first", "Pendy");
+await page.fill("#student-last", "Pendington");
+await page.click('[role="radio"]:has-text("Xavier")');
+await page.fill("#student-number", "999222");
 await page.click('button:has-text("Add student")');
-await page.waitForTimeout(500);
+await page.waitForURL(/\/students$/, { timeout: 5000 });
 await page.fill('input[placeholder*="Search name"]', "Pendington");
 await page.waitForTimeout(600);
+const addedRow = await page.textContent("body");
 check(
   "students: manual add shows pending badge",
-  (await page.textContent("body")).includes("pending")
+  addedRow.includes("pending") && addedRow.includes("Xavier")
 );
 
 // student detail via row tap

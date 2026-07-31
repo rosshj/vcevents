@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Check, TriangleAlert, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard, Screen } from "@/components/guard";
@@ -12,111 +13,13 @@ import { GRADES } from "@/lib/config";
 import type { Student } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/select";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const RESULT_CAP = 60;
 
 type RowStatus = "created" | "duplicate";
-
-function AddStudentForm({
-  onAdded,
-}: {
-  onAdded: (s: Student) => void;
-}) {
-  const { houses } = useSession();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [grade, setGrade] = useState<number>(7);
-  const [houseId, setHouseId] = useState(houses[0]?.id ?? "");
-  const [studentNumber, setStudentNumber] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    setError(null);
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First and last name are required.");
-      return;
-    }
-    if (!/^\d{6}$/.test(studentNumber)) {
-      setError("Student number must be exactly 6 digits.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const s = await repo.addStudent(
-        {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          grade,
-          houseId,
-          studentNumber,
-        },
-        { pending: true }
-      );
-      onAdded(s);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add student.");
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card className="space-y-3 p-4">
-      <p className="text-sm font-bold text-stone-900">Add a student</p>
-      <div className="grid grid-cols-2 gap-2">
-        <Input
-          placeholder="First name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-        />
-        <Input
-          placeholder="Last name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Select
-          value={grade}
-          onChange={(e) => setGrade(Number(e.target.value))}
-        >
-          {GRADES.map((g) => (
-            <option key={g} value={g}>
-              Grade {g}
-            </option>
-          ))}
-        </Select>
-        <Select value={houseId} onChange={(e) => setHouseId(e.target.value)}>
-          {houses.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </Select>
-        <Input
-          placeholder="6-digit #"
-          inputMode="numeric"
-          maxLength={6}
-          value={studentNumber}
-          onChange={(e) => setStudentNumber(e.target.value.replace(/\D/g, ""))}
-        />
-      </div>
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-      <Button className="w-full" onClick={submit} disabled={saving}>
-        <UserPlus className="h-4 w-4" />
-        Add & check in
-      </Button>
-      <p className="text-xs text-stone-500">
-        Added students are marked <Badge variant="amber">pending</Badge> until
-        reconciled with the official roster.
-      </p>
-    </Card>
-  );
-}
 
 function ManualCheckin() {
   const event = useActiveEvent();
@@ -125,7 +28,6 @@ function ManualCheckin() {
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[]>([]);
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({});
-  const [showAdd, setShowAdd] = useState(false);
   usePageHeader("Manual check-in", "/operate/scan");
 
   // Pre-mark rows for students already checked in to this event.
@@ -170,13 +72,6 @@ function ManualCheckin() {
     }));
   };
 
-  const onAdded = async (s: Student) => {
-    setShowAdd(false);
-    await checkIn(s);
-    setQuery(`${s.firstName} ${s.lastName}`);
-    setGrade(null);
-  };
-
   if (!event) return null;
 
   return (
@@ -186,18 +81,15 @@ function ManualCheckin() {
           {event.name}
         </p>
         {canAddStudents(session.role) && (
-          <Button
-            variant={showAdd ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowAdd((v) => !v)}
+          <Link
+            href="/students/new?checkin=1"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             <UserPlus className="h-4 w-4" />
             Add
-          </Button>
+          </Link>
         )}
       </div>
-
-      {showAdd && <AddStudentForm onAdded={onAdded} />}
 
       <Input
         placeholder="Search name or student number…"
