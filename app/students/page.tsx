@@ -9,13 +9,12 @@ import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canImportCsv, canViewStudents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
-import { GRADES } from "@/lib/config";
+import { GradeFilter } from "@/components/grade-filter";
 import type { Student } from "@/lib/types";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { StudentListRow } from "@/components/student-row";
-import { cn } from "@/lib/utils";
 
 const RESULT_CAP = 100;
 
@@ -114,33 +113,7 @@ function StudentsScreen() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        <button
-          onClick={() => setGrade(null)}
-          className={cn(
-            "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
-            grade === null
-              ? "bg-stone-900 text-white shadow-soft"
-              : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
-          )}
-        >
-          All
-        </button>
-        {GRADES.map((g) => (
-          <button
-            key={g}
-            onClick={() => setGrade((prev) => (prev === g ? null : g))}
-            className={cn(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
-              grade === g
-                ? "bg-stone-900 text-white shadow-soft"
-                : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
-            )}
-          >
-            Gr. {g}
-          </button>
-        ))}
-      </div>
+      <GradeFilter value={grade} onChange={setGrade} />
 
       {!results ? (
         <div className="h-48 animate-pulse rounded-2xl bg-stone-200/60" />

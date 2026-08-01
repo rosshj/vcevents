@@ -9,13 +9,12 @@ import { usePageHeader } from "@/components/page-header";
 import { useActiveEvent } from "@/components/use-active-event";
 import { canAddStudents, canOperate } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
-import { GRADES } from "@/lib/config";
+import { GradeFilter } from "@/components/grade-filter";
 import type { Student } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const RESULT_CAP = 60;
 
@@ -99,33 +98,7 @@ function ManualCheckin() {
         className="h-12 text-base"
       />
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        <button
-          onClick={() => setGrade(null)}
-          className={cn(
-            "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
-            grade === null
-              ? "bg-stone-900 text-white shadow-soft"
-              : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
-          )}
-        >
-          All
-        </button>
-        {GRADES.map((g) => (
-          <button
-            key={g}
-            onClick={() => setGrade((prev) => (prev === g ? null : g))}
-            className={cn(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold",
-              grade === g
-                ? "bg-stone-900 text-white shadow-soft"
-                : "bg-stone-900/8 text-stone-600 hover:bg-stone-900/15"
-            )}
-          >
-            Gr. {g}
-          </button>
-        ))}
-      </div>
+      <GradeFilter value={grade} onChange={setGrade} />
 
       {shown.length === 0 ? (
         <p className="py-8 text-center text-sm text-stone-500">
