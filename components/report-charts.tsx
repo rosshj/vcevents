@@ -27,7 +27,7 @@ import {
   RadarLabels,
   type RadarMetric,
 } from "@/components/bklit";
-import { GRADES } from "@/lib/config";
+import { CHART_ACCENT, GRADES } from "@/lib/config";
 import type { House } from "@/lib/types";
 
 /**
@@ -40,7 +40,7 @@ export function chartHouseOrder(houses: House[]): House[] {
   return [...houses].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 
-/** Check-ins per event, chronological. Single series → neutral ink fill. */
+/** Check-ins per event, chronological. Single series → one accent fill. */
 export function EventAttendanceChart({
   events,
 }: {
@@ -54,7 +54,7 @@ export function EventAttendanceChart({
   return (
     <BarChart aspectRatio="2 / 1" barGap={0.35} data={data} xDataKey="label">
       <Grid horizontal />
-      <Bar dataKey="checkins" fill="#44403c" lineCap={4} />
+      <Bar dataKey="checkins" fill={CHART_ACCENT} lineCap={4} />
       <BarXAxis />
       <ChartTooltip />
     </BarChart>
@@ -73,11 +73,11 @@ export function TotalCheckinsGauge({
   return (
     <div className="mx-auto w-full max-w-xs">
       <Gauge
-        activeFill="#292524"
+        activeFill={CHART_ACCENT}
         centerValue={total}
         defaultLabel="Total check-ins"
-        inactiveFill="#a8a29e"
-        inactiveFillOpacity={0.4}
+        inactiveFill={CHART_ACCENT}
+        inactiveFillOpacity={0.18}
         spacing={25}
         value={pctValue}
       />
@@ -139,7 +139,7 @@ export function HousePie({
   );
 }
 
-/** Participation rate per grade — single neutral series. */
+/** Participation rate per grade — single accent series. */
 export function GradeParticipationBars({
   byGrade,
 }: {
@@ -152,7 +152,7 @@ export function GradeParticipationBars({
   return (
     <BarChart aspectRatio="2 / 1" barGap={0.3} data={data} xDataKey="label">
       <Grid horizontal />
-      <Bar dataKey="rate" fill="#44403c" lineCap={4} />
+      <Bar dataKey="rate" fill={CHART_ACCENT} lineCap={4} />
       <BarXAxis />
       <ChartTooltip />
     </BarChart>

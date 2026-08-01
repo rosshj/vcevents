@@ -14,6 +14,14 @@ export const SCHOOL_NAME = "Vancouver College";
 
 export const GRADES = [7, 8, 9, 10, 11, 12] as const;
 
+/**
+ * Accent for school-wide charts (totals, per-event, per-grade) — anything
+ * that is not about one house. Deliberately outside the house palette so a
+ * whole-school bar never reads as "that's Aquinas"; of the hues that clear
+ * 3:1 on white it keeps the most separation from all four house colors.
+ */
+export const CHART_ACCENT = "#0D9488";
+
 /** Light tint of a house color for chips and row accents. */
 export function houseTint(color: string, pct = 12) {
   return `color-mix(in srgb, ${color} ${pct}%, white)`;
