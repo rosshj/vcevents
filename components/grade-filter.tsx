@@ -35,7 +35,7 @@ export function GradeFilter({
               : "text-stone-500 hover:bg-stone-200/60"
           )}
         >
-          {g === null ? "All" : `Gr. ${g}`}
+          {g === null ? "All" : `G${g}`}
         </button>
       ))}
     </div>

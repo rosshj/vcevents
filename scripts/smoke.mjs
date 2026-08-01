@@ -129,7 +129,7 @@ check("manual: search by number prefix works", !!numMatch);
 const studentNumber = numMatch ? numMatch[1] : null;
 
 await page.fill('input[placeholder*="Search name"]', "");
-await page.click("text=Gr. 9");
+await page.click("text=G9");
 await page.waitForTimeout(600);
 await page.locator('button:has-text("Check in")').first().click();
 await page.waitForSelector("text=Checked in", { timeout: 5000 });
