@@ -184,7 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {pageHeader.title}
                 </h1>
                 {pageHeader.subtitle && (
-                  <p className="mt-0.5 text-sm text-stone-500">
+                  <p className="mt-0.5 truncate text-sm text-stone-500">
                     {pageHeader.subtitle}
                   </p>
                 )}

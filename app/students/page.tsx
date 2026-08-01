@@ -32,13 +32,6 @@ function StudentsScreen() {
     actions: useMemo(
       () => (
         <>
-          <Link
-            href="/students/new"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <UserPlus className="h-4 w-4" />
-            Add
-          </Link>
           {canImportCsv(session.role) && (
             <Link
               href="/students/import"
@@ -48,6 +41,13 @@ function StudentsScreen() {
               CSV
             </Link>
           )}
+          <Link
+            href="/students/new"
+            className={buttonVariants({ size: "sm" })}
+          >
+            <UserPlus className="h-4 w-4" />
+            Add
+          </Link>
         </>
       ),
       [session.role]

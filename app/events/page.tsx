@@ -48,7 +48,7 @@ function EventsScreen() {
   const [rows, setRows] = useState<EventRow[] | null>(null);
   usePageChrome({
     title: "Events",
-    subtitle: "Open an event to run check-in and see who's there.",
+    subtitle: "Tap an event to run check-in.",
     actions: useMemo(
       () =>
         canManageEvents(session.role) ? (

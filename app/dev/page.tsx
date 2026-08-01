@@ -197,7 +197,7 @@ export default function DevPage() {
   const [resetting, setResetting] = useState(false);
   usePageChrome({
     title: "Me",
-    subtitle: "Mock auth for the prototype — production replaces this with Google SSO.",
+    subtitle: "Mock auth — production uses Google SSO.",
   });
 
   const handleReset = useCallback(async () => {

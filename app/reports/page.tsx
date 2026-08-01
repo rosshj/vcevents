@@ -84,7 +84,7 @@ function ReportsScreen() {
   const [data, setData] = useState<ReportData | null>(null);
   usePageChrome({
     title: "Reports",
-    subtitle: "Participation this year — points stay human-decided.",
+    subtitle: "Participation this year",
   });
 
   useEffect(() => {
