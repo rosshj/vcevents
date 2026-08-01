@@ -254,14 +254,23 @@ check(
   "students: imported student searchable",
   (await page.textContent("body")).includes("McTestface")
 );
-await page.click('a[href="/students/new"]');
-await page.waitForURL("**/students/new", { timeout: 5000 });
+// Add student now opens a Silk sheet in place rather than routing away.
+await page.getByRole("button", { name: "Add", exact: true }).click();
+await page.waitForSelector("#student-first", { timeout: 5000 });
+// Let the sheet finish travelling before interacting — mid-animation the
+// controls are still below the fold.
+await page.waitForTimeout(900);
+check(
+  "students: add form opens in a sheet",
+  (await page.locator("#student-first").boundingBox()).y < 400
+);
 await page.fill("#student-first", "Pendy");
 await page.fill("#student-last", "Pendington");
 await page.click('[role="radio"]:has-text("Xavier")');
 await page.fill("#student-number", "999222");
 await page.click('button:has-text("Add student")');
-await page.waitForURL(/\/students$/, { timeout: 5000 });
+await page.waitForSelector("#student-first", { state: "detached", timeout: 5000 });
+check("students: sheet closes after save", true);
 await page.fill('input[placeholder*="Search name"]', "Pendington");
 await page.waitForTimeout(600);
 const addedRow = await page.textContent("body");

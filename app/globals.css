@@ -1,4 +1,12 @@
+/* Silk's defaults must sit in the lowest-priority layer so Tailwind
+   utilities can override the properties it sets (height, position). Its
+   unlayered build would otherwise beat every Tailwind utility, since
+   unlayered CSS outranks all layers. Declared before the Tailwind import
+   so this order is the one that sticks. */
+@layer silk-defaults, theme, base, components, utilities;
+
 @import "tailwindcss";
+@import "@silk-hq/components/layered-styles";
 
 :root {
   --background: #ffffff;

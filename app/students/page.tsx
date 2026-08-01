@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FileUp, UserPlus } from "lucide-react";
 import { useSession } from "@/components/session-provider";
-import { useStudentSheet } from "@/components/student-sheet";
+import { DATA_CHANGED_EVENT, useStudentSheet } from "@/components/student-sheet";
 import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canImportCsv, canViewStudents } from "@/lib/permissions";
@@ -20,11 +20,12 @@ const RESULT_CAP = 100;
 
 function StudentsScreen() {
   const { session, houseById } = useSession();
-  const { openStudent } = useStudentSheet();
+  const { openStudent, openAddStudent } = useStudentSheet();
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [version, setVersion] = useState(0);
   usePageChrome({
     title: "Students",
     subtitle: total ? `${total} students` : undefined,
@@ -40,16 +41,16 @@ function StudentsScreen() {
               CSV
             </Link>
           )}
-          <Link
-            href="/students/new"
+          <button
+            onClick={openAddStudent}
             className={buttonVariants({ size: "sm" })}
           >
             <UserPlus className="h-4 w-4" />
             Add
-          </Link>
+          </button>
         </>
       ),
-      [session.role]
+      [session.role, openAddStudent]
     ),
   });
 
@@ -66,7 +67,14 @@ function StudentsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [query, grade]);
+  }, [query, grade, version]);
+
+  // The add-student sheet can add a row while this list is mounted.
+  useEffect(() => {
+    const refetch = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, refetch);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, refetch);
+  }, []);
 
   const shown = results?.slice(0, RESULT_CAP) ?? [];
 

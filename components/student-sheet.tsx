@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { Drawer } from "vaul";
 import {
   CalendarDays,
   Check,
@@ -25,6 +24,8 @@ import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BottomSheet } from "@/components/ui/sheet";
+import { StudentForm } from "@/components/student-form";
 
 const METHOD_META = {
   qr: { label: "QR pass", Icon: QrCode },
@@ -37,6 +38,8 @@ export const DATA_CHANGED_EVENT = "vc:data-changed";
 
 interface StudentSheetContextValue {
   openStudent: (studentId: string) => void;
+  /** Opens the "add student" form in a sheet. */
+  openAddStudent: () => void;
 }
 
 const StudentSheetContext = createContext<StudentSheetContextValue | null>(
@@ -224,35 +227,43 @@ export function StudentSheetProvider({
 }) {
   const [open, setOpen] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const openStudent = useCallback((id: string) => {
     setStudentId(id);
     setOpen(true);
   }, []);
+  const openAddStudent = useCallback(() => setAddOpen(true), []);
 
   return (
-    <StudentSheetContext.Provider value={{ openStudent }}>
+    <StudentSheetContext.Provider value={{ openStudent, openAddStudent }}>
       {children}
-      <Drawer.Root open={open} onOpenChange={setOpen}>
-        <Drawer.Portal>
-          <Drawer.Overlay className="fixed inset-0 z-50 bg-black/40" />
-          <Drawer.Content
-            aria-describedby={undefined}
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-[2rem] bg-white outline-none"
-          >
-            <Drawer.Title className="sr-only">Student details</Drawer.Title>
-            <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-stone-300" />
-            <div className="overflow-y-auto px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-4">
-              {studentId && (
-                <SheetBody
-                  studentId={studentId}
-                  onClose={() => setOpen(false)}
-                />
-              )}
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
+      <BottomSheet
+        presented={open}
+        onPresentedChange={setOpen}
+        title="Student details"
+      >
+        {studentId && (
+          <SheetBody studentId={studentId} onClose={() => setOpen(false)} />
+        )}
+      </BottomSheet>
+
+      {/* Forms in a sheet: Silk's Scroll keeps the focused input above the
+          on-screen keyboard, which is what vaul couldn't do for us. */}
+      <BottomSheet
+        presented={addOpen}
+        onPresentedChange={setAddOpen}
+        title="Add student"
+        size="tall"
+      >
+        <h2 className="mb-4 text-2xl font-bold text-stone-900">Add student</h2>
+        <StudentForm
+          onSaved={() => {
+            setAddOpen(false);
+            window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+          }}
+        />
+      </BottomSheet>
     </StudentSheetContext.Provider>
   );
 }
