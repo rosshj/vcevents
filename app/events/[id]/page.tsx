@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
+import { useEventSheet } from "@/components/event-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import {
@@ -50,6 +51,7 @@ function EventDetail() {
   const [awarded, setAwarded] = useState(0);
   const [version, setVersion] = useState(0);
   const { openStudent } = useStudentSheet();
+  const { openEditEvent } = useEventSheet();
   usePageHeader(event?.name ?? "Event", "/events");
 
   // Refetch when the student sheet checks someone in over this screen.
@@ -160,13 +162,13 @@ function EventDetail() {
             </Link>
           )}
           {canManageEvents(session.role) && (
-            <Link
-              href={`/events/${event.id}/edit`}
+            <button
+              onClick={() => openEditEvent(event)}
               className={buttonVariants({ variant: "ghost", size: "sm" })}
             >
               <Pencil className="h-4 w-4" />
               Edit
-            </Link>
+            </button>
           )}
         </div>
       )}

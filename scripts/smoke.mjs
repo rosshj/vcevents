@@ -86,7 +86,7 @@ await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=House Games Assembly");
 check(
   "events: teacher sees list without New button",
-  (await page.locator('a[href="/events/new"]').count()) === 0
+  (await page.getByRole("button", { name: "New", exact: true }).count()) === 0
 );
 await page.goto(BASE + "/reports", { waitUntil: "networkidle" });
 check(
@@ -209,20 +209,32 @@ await page.waitForTimeout(300);
 
 await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Welcome Back BBQ");
-await page.click('a[href="/events/new"]');
-await page.waitForURL("**/events/new", { timeout: 5000 });
+// New event opens a sheet in place rather than routing away.
+await page.getByRole("button", { name: "New", exact: true }).click();
+await page.waitForSelector("#event-name", { timeout: 5000 });
+await page.waitForTimeout(900); // let the sheet finish travelling
 await page.fill("#event-name", "Smoke Test Social");
 // tier segmented control drives the default pool
 await page.click('[role="radio"]:has-text("Major")');
 const poolVal = await page.inputValue("#event-pool");
 check("events: tier picks default pool", poolVal === "1000", poolVal);
 await page.click('button:has-text("Create event")');
-await page.waitForURL(/\/events$/, { timeout: 5000 });
+await page.waitForSelector("#event-name", { state: "detached", timeout: 5000 });
 await page.waitForSelector("text=Smoke Test Social", { timeout: 5000 });
 check("events: director create works", true);
 
 await page.click("text=Welcome Back BBQ");
 await page.waitForSelector("text=Attendance by house");
+// Edit opens the same form sheet, prefilled.
+await page.getByRole("button", { name: "Edit", exact: true }).click();
+await page.waitForSelector("#event-name", { timeout: 5000 });
+await page.waitForTimeout(900);
+check(
+  "events: edit opens prefilled sheet",
+  (await page.inputValue("#event-name")) === "Welcome Back BBQ"
+);
+await page.keyboard.press("Escape");
+await page.waitForSelector("#event-name", { state: "detached", timeout: 5000 });
 await page.locator('a[href$="/award"]').click();
 await page.waitForURL("**/award", { timeout: 10000 });
 await page.waitForSelector("text=Award points");

@@ -228,12 +228,18 @@ export function StudentSheetProvider({
   const [open, setOpen] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  // Remount the form on every open so it never shows the previous run's
+  // values or "Saved" state.
+  const [addCount, setAddCount] = useState(0);
 
   const openStudent = useCallback((id: string) => {
     setStudentId(id);
     setOpen(true);
   }, []);
-  const openAddStudent = useCallback(() => setAddOpen(true), []);
+  const openAddStudent = useCallback(() => {
+    setAddCount((n) => n + 1);
+    setAddOpen(true);
+  }, []);
 
   return (
     <StudentSheetContext.Provider value={{ openStudent, openAddStudent }}>
@@ -258,6 +264,7 @@ export function StudentSheetProvider({
       >
         <h2 className="mb-4 text-2xl font-bold text-stone-900">Add student</h2>
         <StudentForm
+          key={addCount}
           onSaved={() => {
             setAddOpen(false);
             window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));

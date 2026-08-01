@@ -5,6 +5,8 @@ import Link from "next/link";
 import { CalendarDays, CalendarPlus, ChevronRight, ScanLine } from "lucide-react";
 import { useMemo } from "react";
 import { useSession } from "@/components/session-provider";
+import { useEventSheet } from "@/components/event-sheet";
+import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { canManageEvents, canViewEvents } from "@/lib/permissions";
@@ -45,19 +47,24 @@ async function fetchRows(): Promise<EventRow[]> {
 
 function EventsScreen() {
   const { session } = useSession();
+  const { openNewEvent } = useEventSheet();
   const [rows, setRows] = useState<EventRow[] | null>(null);
+  const [version, setVersion] = useState(0);
   usePageChrome({
     title: "Events",
     subtitle: "Tap an event to run check-in.",
     actions: useMemo(
       () =>
         canManageEvents(session.role) ? (
-          <Link href="/events/new" className={buttonVariants({ size: "sm" })}>
+          <button
+            onClick={openNewEvent}
+            className={buttonVariants({ size: "sm" })}
+          >
             <CalendarPlus className="h-4 w-4" />
             New
-          </Link>
+          </button>
         ) : undefined,
-      [session.role]
+      [session.role, openNewEvent]
     ),
   });
 
@@ -69,6 +76,13 @@ function EventsScreen() {
     return () => {
       cancelled = true;
     };
+  }, [version]);
+
+  // The event sheet can create an event while this list is mounted.
+  useEffect(() => {
+    const refetch = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, refetch);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, refetch);
   }, []);
 
   return (
