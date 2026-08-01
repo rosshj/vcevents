@@ -41,10 +41,14 @@ export function BottomSheet({
     >
       <Sheet.Portal>
         <Sheet.View className="z-50" nativeEdgeSwipePrevention>
+          {/* themeColorDimming requires an alpha-free background-color —
+              rgba() crashes its color parser on iOS (WebKit is the only
+              engine where "auto" activates). Dim via opacity keyframes
+              instead: black at 0.4 ≈ the usual bg-black/40 scrim. */}
           <Sheet.Backdrop
-            className="bg-black/40"
+            className="bg-black"
             themeColorDimming="auto"
-            travelAnimation={{ opacity: [0, 1] }}
+            travelAnimation={{ opacity: [0, 0.4] }}
           />
           <Sheet.Content
             className={cn(
