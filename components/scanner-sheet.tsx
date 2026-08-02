@@ -17,6 +17,7 @@ import {
   animate,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useTransform,
 } from "framer-motion";
 import {
@@ -307,38 +308,62 @@ function ScannerSurface({
   }, [expanded]);
 
   // Measure the bar geometry (offset*, so entrance transforms don't skew
-  // it) and the viewport. Everything below interpolates between the two.
-  useEffect(() => {
-    const measure = () => {
-      const probe = probeRef.current;
-      const wrapper = wrapperRef.current;
-      if (!probe || !wrapper) return;
-      metricsRef.current = {
-        barTop: probe.offsetTop,
-        barLeft: probe.offsetLeft,
-        barWidth: probe.offsetWidth,
-        barHeight: probe.offsetHeight,
-        vw: wrapper.clientWidth,
-        vh: wrapper.clientHeight,
-      };
-      setMeasured(true);
-      progress.set(progress.get()); // recompute transforms with fresh metrics
+  // it) and the viewport. Only trusted for the DURATION of an interaction —
+  // it's re-read right as each one starts, because iOS resizes the
+  // viewport without telling anyone (see the nudge hack in AppShell). At
+  // rest the surface is CSS-anchored instead, which can't drift.
+  const readMetrics = useCallback(() => {
+    const probe = probeRef.current;
+    const wrapper = wrapperRef.current;
+    if (!probe || !wrapper) return;
+    metricsRef.current = {
+      barTop: probe.offsetTop,
+      barLeft: probe.offsetLeft,
+      barWidth: probe.offsetWidth,
+      barHeight: probe.offsetHeight,
+      vw: wrapper.clientWidth,
+      vh: wrapper.clientHeight,
     };
-    const raf = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
+    progress.set(progress.get()); // recompute transforms with fresh metrics
+  }, [progress]);
+
+  useEffect(() => {
+    const onMeasure = () => {
+      readMetrics();
+      setMeasured(true);
+    };
+    const raf = requestAnimationFrame(onMeasure);
+    window.addEventListener("resize", onMeasure);
+    // iOS reports some viewport changes only here, not on window resize.
+    window.visualViewport?.addEventListener("resize", onMeasure);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", onMeasure);
+      window.visualViewport?.removeEventListener("resize", onMeasure);
     };
-  }, [progress]);
+  }, [readMetrics]);
 
   // Taps, buttons, and gesture releases flip `expanded`; the visual state
   // follows by springing progress to match — from wherever the finger
   // left it, so gestures hand off seamlessly.
   useEffect(() => {
+    readMetrics();
     const controls = animate(progress, expanded ? 1 : 0, SPRING);
     return () => controls.stop();
-  }, [expanded, progress]);
+  }, [expanded, progress, readMetrics]);
+
+  // True whenever progress sits exactly at an endpoint — the surface then
+  // renders CSS-anchored so a mid-flight iOS viewport resize can't leave
+  // it hanging misaligned; the measured box takes over only in motion.
+  const [resting, setResting] = useState(true);
+  const restingRef = useRef(true);
+  useMotionValueEvent(progress, "change", (p) => {
+    const r = p <= 0 || p >= 1;
+    if (r !== restingRef.current) {
+      restingRef.current = r;
+      setResting(r);
+    }
+  });
 
   // Post-drag clicks would re-trigger buttons under the finger; swallow
   // them in capture phase after any real pan.
@@ -396,6 +421,7 @@ function ScannerSurface({
       }}
       onPanStart={() => {
         panMoved.current = false;
+        readMetrics(); // fresh geometry the moment the finger takes over
         progress.stop();
         panStart.current = progress.get();
       }}
@@ -434,13 +460,26 @@ function ScannerSurface({
 
       {measured && (
         <>
-          {/* The morphing dark surface — one element, no children, its
-              box interpolated between full-screen and the docked bar. */}
-          <motion.div
-            onClick={expanded ? undefined : onExpand}
-            style={{ top, left, width, height, borderRadius: radius, backgroundColor: bg }}
-            className="pointer-events-auto absolute touch-none shadow-float"
-          />
+          {/* The morphing dark surface — CSS-anchored at rest (immune to
+              sneaky viewport resizes), measurement-driven while moving.
+              The boxes coincide at the swap because metrics are re-read
+              as each interaction starts. */}
+          {resting ? (
+            <div
+              onClick={expanded ? undefined : onExpand}
+              className={cn(
+                "pointer-events-auto absolute touch-none shadow-float",
+                expanded
+                  ? "inset-0 bg-stone-950"
+                  : cn(BAR_GEOM, "rounded-[20px] bg-stone-900")
+              )}
+            />
+          ) : (
+            <motion.div
+              style={{ top, left, width, height, borderRadius: radius, backgroundColor: bg }}
+              className="pointer-events-auto absolute touch-none shadow-float"
+            />
+          )}
 
           {/* Content layers ride the surface and crossfade over it. */}
           <AnimatePresence initial={false}>
