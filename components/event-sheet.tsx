@@ -58,7 +58,6 @@ export function EventSheetProvider({
         presented={open}
         onPresentedChange={setOpen}
         title={editing ? "Edit event" : "New event"}
-        size="tall"
       >
         <h2 className="mb-4 text-2xl font-bold text-stone-900">
           {editing ? "Edit event" : "New event"}

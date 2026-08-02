@@ -15,20 +15,22 @@ import { cn } from "@/lib/utils";
  * keyboard*, and `onFocusInside={{ scrollIntoView: true }}` scrolls the
  * focused input clear of it. That combination is what makes forms usable
  * in a sheet on iOS.
+ *
+ * The sheet hugs its content (capped at 92dvh). The white surface lives
+ * on `<Sheet.BleedingBackground>`, not the content box — it extends
+ * beyond the bottom edge so pulling the sheet up past its height shows
+ * white instead of a gap.
  */
 export function BottomSheet({
   presented,
   onPresentedChange,
   title,
-  /** "content" hugs its content (capped); "tall" leaves room for a keyboard. */
-  size = "content",
   className,
   children,
 }: {
   presented: boolean;
   onPresentedChange: (presented: boolean) => void;
   title: string;
-  size?: "content" | "tall";
   className?: string;
   children: React.ReactNode;
 }) {
@@ -51,12 +53,9 @@ export function BottomSheet({
             travelAnimation={{ opacity: [0, 0.4] }}
           />
           <Sheet.Content
-            className={cn(
-              "flex flex-col overflow-hidden rounded-t-[2rem] bg-white",
-              size === "tall" ? "h-[92dvh]" : "max-h-[92dvh]",
-              className
-            )}
+            className={cn("flex h-auto max-h-[92dvh] flex-col", className)}
           >
+            <Sheet.BleedingBackground className="rounded-t-[2rem] bg-white" />
             <Sheet.Title className="sr-only">{title}</Sheet.Title>
             <span
               aria-hidden

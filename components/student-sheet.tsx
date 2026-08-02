@@ -260,7 +260,6 @@ export function StudentSheetProvider({
         presented={addOpen}
         onPresentedChange={setAddOpen}
         title="Add student"
-        size="tall"
       >
         <h2 className="mb-4 text-2xl font-bold text-stone-900">Add student</h2>
         <StudentForm
