@@ -39,11 +39,17 @@ import { cn } from "@/lib/utils";
  * above the tab bar — swipe the bar up to bring it back. The operating
  * session stays live in both states.
  *
- * Only the dark background carries the morphing `layoutId`; content sits
- * on a separate layer that fades, so nothing stretches mid-transition.
+ * The dark surface is ONE persistent element that `layout`-animates
+ * between the two geometries, so the grow/shrink morph is guaranteed in
+ * both directions. Content never lives inside it — the sheet and bar
+ * contents are sibling layers that crossfade above it, so nothing
+ * stretches mid-morph. A shared wrapper carries the drag gesture, which
+ * is how the whole surface follows the finger.
  */
 
-const SURFACE_ID = "scanner-surface";
+/** Geometry of the docked bar — the surface and its content layer share it. */
+const BAR_GEOM =
+  "left-4 right-4 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.6rem)] mx-auto h-14 max-w-md";
 
 interface ScannerContextValue {
   expanded: boolean;
@@ -155,7 +161,8 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
       setActiveOp((prev) => {
         if (!e) return null;
         // Same event re-resolved (e.g. after an edit): keep the clock.
-        if (prev && prev.event.id === e.id) return { event: e, startedAt: prev.startedAt };
+        if (prev && prev.event.id === e.id)
+          return { event: e, startedAt: prev.startedAt };
         return { event: e, startedAt: at };
       });
     });
@@ -201,6 +208,8 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
     collapse();
   };
 
+  const visible = Boolean(event) && (expanded || showBar);
+
   return (
     <>
       {/* Outside AnimatePresence on purpose: the browser chrome / page
@@ -209,25 +218,18 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
           while the sheet is still fading out. */}
       {event && expanded && <ScannerThemeColor />}
       <AnimatePresence>
-        {event && expanded && (
-          <ExpandedScanner
-            key="scanner-sheet"
+        {visible && event && (
+          <ScannerSurface
+            key="scanner"
             event={event}
+            expanded={expanded}
             tally={tally}
             schoolSize={schoolSize}
             startedAt={activeOp?.startedAt ?? null}
             lastCheckin={last}
             onCheckin={onCheckin}
-            onCollapse={collapse}
-            morph={showBar}
-          />
-        )}
-        {event && !expanded && showBar && (
-          <OperatingBar
-            key="scanner-bar"
-            event={event}
-            tally={tally}
             onExpand={expand}
+            onCollapse={collapse}
             onStop={stop}
           />
         )}
@@ -241,71 +243,147 @@ function ScannerThemeColor() {
   return null;
 }
 
-/** The collapsed state: a docked bar just above the tab bar. */
-function OperatingBar({
+/**
+ * The persistent scanner UI: drag wrapper + morphing surface + content
+ * layers. Mounted whenever there's something to show (sheet or bar) and
+ * kept alive across the two states so the surface really transforms.
+ */
+function ScannerSurface({
   event,
+  expanded,
   tally,
+  schoolSize,
+  startedAt,
+  lastCheckin,
+  onCheckin,
   onExpand,
+  onCollapse,
   onStop,
 }: {
   event: SchoolEvent;
+  expanded: boolean;
   tally: number | null;
+  schoolSize: number | null;
+  startedAt: number | null;
+  lastCheckin: LastCheckin | null;
+  onCheckin: (student: Student) => void;
   onExpand: () => void;
+  onCollapse: () => void;
   onStop: () => void;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+      // Entering as the sheet: present from the bottom. Entering as the
+      // bar (e.g. navigating to a root tab while operating): fade up.
+      initial={expanded ? { y: "110%" } : { y: 16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={
+        expanded
+          ? { y: "70%", opacity: 0, transition: { duration: 0.25 } }
+          : { y: 24, opacity: 0, transition: { duration: 0.2 } }
+      }
+      transition={{ type: "spring", stiffness: 400, damping: 38 }}
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={{ top: 0.6, bottom: 0 }}
+      dragElastic={expanded ? { top: 0, bottom: 0.55 } : { top: 0.6, bottom: 0 }}
       dragMomentum={false}
       onDragEnd={(_, info) => {
-        // The mirror of the sheet's swipe-down: flick the bar up to open.
-        if (info.offset.y < -32 || info.velocity.y < -400) onExpand();
+        if (expanded) {
+          if (info.offset.y > 120 || info.velocity.y > 600) onCollapse();
+        } else if (info.offset.y < -32 || info.velocity.y < -400) {
+          onExpand();
+        }
       }}
-      className="fixed inset-x-4 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.6rem)] z-40 mx-auto flex max-w-md items-center gap-2 py-1.5 pl-4 pr-2 text-white"
+      className="pointer-events-none fixed inset-0 z-50 text-white"
     >
+      {/* The morphing dark surface — one element, no children, animating
+          between full-screen and the docked-bar geometry. */}
       <motion.div
-        layoutId={SURFACE_ID}
-        style={{ borderRadius: 20 }}
-        className="absolute inset-0 bg-stone-900 shadow-float"
+        layout
+        onClick={expanded ? undefined : onExpand}
+        animate={{
+          borderRadius: expanded ? 0 : 20,
+          backgroundColor: expanded ? "#0c0a09" : "#1c1917",
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 380,
+          damping: 40,
+          borderRadius: { duration: 0.25 },
+          backgroundColor: { duration: 0.25 },
+        }}
+        className={cn(
+          "pointer-events-auto absolute shadow-float",
+          expanded ? "inset-0" : BAR_GEOM
+        )}
       />
-      <button
-        onClick={onExpand}
-        aria-label="Expand scanner"
-        className="relative flex min-w-0 flex-1 items-center gap-3 py-1 text-left"
-      >
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold leading-tight">
-            {event.name}
-          </span>
-          <span className="block text-[11px] leading-tight text-white/60">
-            Scanning · {tally ?? "–"} checked in
-          </span>
-        </span>
-        <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
-      </button>
-      <button
-        onClick={onStop}
-        aria-label="Stop operating this event"
-        className="relative shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
-      >
-        Stop
-      </button>
+
+      {/* Content layers crossfade above the surface; they never stretch. */}
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            key="sheet-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.25, delay: 0.08 } }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            className="pointer-events-auto absolute inset-0 flex flex-col"
+          >
+            <SheetContent
+              event={event}
+              tally={tally}
+              schoolSize={schoolSize}
+              startedAt={startedAt}
+              lastCheckin={lastCheckin}
+              onCheckin={onCheckin}
+              onCollapse={onCollapse}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="bar-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.1 } }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            className={cn(
+              "pointer-events-auto absolute flex items-center gap-2 pl-4 pr-2",
+              BAR_GEOM
+            )}
+          >
+            <button
+              onClick={onExpand}
+              aria-label="Expand scanner"
+              className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
+            >
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold leading-tight">
+                  {event.name}
+                </span>
+                <span className="block text-[11px] leading-tight text-white/60">
+                  Scanning · {tally ?? "–"} checked in
+                </span>
+              </span>
+              <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
+            </button>
+            <button
+              onClick={onStop}
+              aria-label="Stop operating this event"
+              className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
+            >
+              Stop
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-/** The expanded state: full-screen camera + check-in feedback. */
-function ExpandedScanner({
+/** The expanded state's content: full-screen camera + check-in feedback. */
+function SheetContent({
   event,
   tally,
   schoolSize,
@@ -313,7 +391,6 @@ function ExpandedScanner({
   lastCheckin,
   onCheckin,
   onCollapse,
-  morph,
 }: {
   event: SchoolEvent;
   tally: number | null;
@@ -322,8 +399,6 @@ function ExpandedScanner({
   lastCheckin: LastCheckin | null;
   onCheckin: (student: Student) => void;
   onCollapse: () => void;
-  /** True when the mini-bar is there to morph into; otherwise slide down. */
-  morph: boolean;
 }) {
   const { session, houseById } = useSession();
   const router = useRouter();
@@ -530,204 +605,168 @@ function ExpandedScanner({
       : null;
 
   return (
-    <motion.div
-      initial={morph ? false : { y: "100%" }}
-      animate={{ y: 0 }}
-      exit={
-        morph
-          ? undefined
-          : { y: "100%", transition: { type: "spring", stiffness: 380, damping: 42 } }
-      }
-      transition={{ type: "spring", stiffness: 380, damping: 40 }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={{ top: 0, bottom: 0.55 }}
-      dragMomentum={false}
-      onDragEnd={(_, info) => {
-        if (info.offset.y > 120 || info.velocity.y > 600) onCollapse();
-      }}
-      className="fixed inset-0 z-50 flex flex-col text-white"
-    >
-      {/* The morphing dark surface — content sits on its own layer above
-          and only ever fades, so nothing stretches during the morph. */}
-      <motion.div
-        layoutId={morph ? SURFACE_ID : undefined}
-        style={{ borderRadius: 0 }}
-        exit={morph ? { opacity: 0, transition: { duration: 0.3 } } : undefined}
-        className="absolute inset-0 bg-stone-950"
-      />
+    <>
+      {/* Grab handle — the sheet swipes down into the mini-bar. */}
+      <div className="flex shrink-0 justify-center pt-[max(env(safe-area-inset-top),0.75rem)]">
+        <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/25" />
+      </div>
 
-      <motion.div
-        initial={morph ? { opacity: 0 } : false}
-        animate={{
-          opacity: 1,
-          transition: { duration: 0.25, delay: morph ? 0.08 : 0 },
-        }}
-        exit={morph ? { opacity: 0, transition: { duration: 0.15 } } : undefined}
-        className="relative flex min-h-0 flex-1 flex-col"
-      >
-        {/* Grab handle — the sheet swipes down into the mini-bar. */}
-        <div className="flex shrink-0 justify-center pt-[max(env(safe-area-inset-top),0.75rem)]">
-          <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/25" />
-        </div>
+      {/* Header — centered title, one quiet minimize affordance. */}
+      <div className="relative shrink-0 px-14 pb-4 pt-3 text-center">
+        <button
+          onClick={onCollapse}
+          className="absolute left-3 top-2 rounded-full bg-white/10 p-2 hover:bg-white/20"
+          aria-label="Minimize scanner"
+        >
+          <ChevronDown className="h-5 w-5" />
+        </button>
+        <p className="truncate text-xl font-bold">{event.name}</p>
+        <p className="mt-0.5 text-sm text-white/60">Scanning for check-in</p>
+      </div>
 
-        {/* Header — centered title, one quiet minimize affordance. */}
-        <div className="relative shrink-0 px-14 pb-4 pt-3 text-center">
-          <button
-            onClick={onCollapse}
-            className="absolute left-3 top-2 rounded-full bg-white/10 p-2 hover:bg-white/20"
-            aria-label="Minimize scanner"
-          >
-            <ChevronDown className="h-5 w-5" />
-          </button>
-          <p className="truncate text-xl font-bold">{event.name}</p>
-          <p className="mt-0.5 text-sm text-white/60">Scanning for check-in</p>
-        </div>
-
-        {/* Camera viewport — a rounded panel, not full bleed. */}
-        <div className="relative mx-4 min-h-0 flex-1 overflow-hidden rounded-3xl bg-stone-900">
-          <video
-            ref={videoRef}
-            className="absolute inset-0 h-full w-full object-cover"
-            muted
-            playsInline
-          />
-          {cameraState === "on" && !overlay && (
-            <div className="pointer-events-none absolute inset-0">
-              <span className="absolute left-5 top-5 h-14 w-14 rounded-tl-3xl border-l-4 border-t-4 border-white/80" />
-              <span className="absolute right-5 top-5 h-14 w-14 rounded-tr-3xl border-r-4 border-t-4 border-white/80" />
-              <span className="absolute bottom-5 left-5 h-14 w-14 rounded-bl-3xl border-b-4 border-l-4 border-white/80" />
-              <span className="absolute bottom-5 right-5 h-14 w-14 rounded-br-3xl border-b-4 border-r-4 border-white/80" />
-              <p className="absolute inset-x-0 bottom-7 text-center text-sm font-medium text-white/80">
-                Point at a pass or ID card
-              </p>
-            </div>
-          )}
-          {cameraState === "starting" && (
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">
-              Starting camera…
-            </div>
-          )}
-          {cameraState === "error" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
-              <CameraOff className="h-10 w-10 text-white/50" />
-              <p className="font-semibold">Camera unavailable</p>
-              <p className="text-sm text-white/60">
-                Allow camera access, or type a student number below / use
-                manual check-in.
-              </p>
-              <Button
-                variant="secondary"
-                onClick={() => setCameraAttempt((a) => a + 1)}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Try camera again
-              </Button>
-            </div>
-          )}
-
-          {/* Result overlays — clipped to the rounded panel. */}
-          <AnimatePresence>
-            {overlay && (
-              <ScanOverlay
-                key={
-                  overlay.kind === "unknown"
-                    ? `unknown-${overlay.code}`
-                    : `${overlay.kind}-${overlay.student.id}`
-                }
-                overlay={overlay}
-                houseColor={
-                  overlay.kind !== "unknown"
-                    ? houseById(overlay.student.houseId)?.color
-                    : undefined
-                }
-                houseName={
-                  overlay.kind !== "unknown"
-                    ? houseById(overlay.student.houseId)?.name
-                    : undefined
-                }
-                onManual={goManual}
-                onDismiss={() => setOverlay(null)}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Last check-in — constant height so the camera never jumps. */}
-        <div className="mx-4 mt-3 shrink-0">
-          {lastCheckin ? (
-            <div className="flex items-center justify-between gap-3 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-3">
-              <span className="flex min-w-0 items-center gap-2 font-bold text-emerald-300">
-                <Check className="h-4 w-4 shrink-0" />
-                <span className="truncate">
-                  {lastCheckin.student.firstName} {lastCheckin.student.lastName}
-                  {lastHouse && <> · {lastHouse.name}</>}
-                </span>
-              </span>
-              <span className="shrink-0 text-sm font-semibold text-emerald-300/90">
-                {relTime(now - lastCheckin.at)}
-              </span>
-            </div>
-          ) : (
-            <div className="rounded-full border border-white/10 px-5 py-3 text-center text-sm text-white/40">
-              Waiting for the first scan…
-            </div>
-          )}
-        </div>
-
-        {/* Session stats */}
-        <div className="grid shrink-0 grid-cols-3 gap-2 px-4 pb-1 pt-4 text-center">
-          <div>
-            <p className="text-3xl font-black tabular-nums">{tally ?? "–"}</p>
-            <p className="mt-0.5 text-sm text-white/50">checked in</p>
-          </div>
-          <div>
-            <p className="text-3xl font-black tabular-nums">
-              {pct != null ? `${pct}%` : "–"}
+      {/* Camera viewport — a rounded panel, not full bleed. */}
+      <div className="relative mx-4 min-h-0 flex-1 overflow-hidden rounded-3xl bg-stone-900">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 h-full w-full object-cover"
+          muted
+          playsInline
+        />
+        {cameraState === "on" && !overlay && (
+          <div className="pointer-events-none absolute inset-0">
+            <span className="absolute left-5 top-5 h-14 w-14 rounded-tl-3xl border-l-4 border-t-4 border-white/80" />
+            <span className="absolute right-5 top-5 h-14 w-14 rounded-tr-3xl border-r-4 border-t-4 border-white/80" />
+            <span className="absolute bottom-5 left-5 h-14 w-14 rounded-bl-3xl border-b-4 border-l-4 border-white/80" />
+            <span className="absolute bottom-5 right-5 h-14 w-14 rounded-br-3xl border-b-4 border-r-4 border-white/80" />
+            <p className="absolute inset-x-0 bottom-7 text-center text-sm font-medium text-white/80">
+              Point at a pass or ID card
             </p>
-            <p className="mt-0.5 text-sm text-white/50">of school</p>
           </div>
-          <div>
-            <p className="text-3xl font-black tabular-nums">
-              {startedAt != null ? formatElapsed(now - startedAt) : "–"}
+        )}
+        {cameraState === "starting" && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">
+            Starting camera…
+          </div>
+        )}
+        {cameraState === "error" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+            <CameraOff className="h-10 w-10 text-white/50" />
+            <p className="font-semibold">Camera unavailable</p>
+            <p className="text-sm text-white/60">
+              Allow camera access, or type a student number below / use manual
+              check-in.
             </p>
-            <p className="mt-0.5 text-sm text-white/50">elapsed</p>
-          </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div className="shrink-0 space-y-2 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2">
-          {cameraState === "error" && (
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitTyped();
-              }}
+            <Button
+              variant="secondary"
+              onClick={() => setCameraAttempt((a) => a + 1)}
             >
-              <Input
-                value={typedCode}
-                onChange={(e) => setTypedCode(e.target.value)}
-                placeholder="Type or wedge-scan a student number…"
-                inputMode="numeric"
-                className="bg-white/10 text-white placeholder:text-white/40"
-                autoFocus
-              />
-              <Button type="submit" variant="secondary">
-                <Check className="h-4 w-4" />
-              </Button>
-            </form>
+              <RefreshCw className="h-4 w-4" />
+              Try camera again
+            </Button>
+          </div>
+        )}
+
+        {/* Result overlays — clipped to the rounded panel. */}
+        <AnimatePresence>
+          {overlay && (
+            <ScanOverlay
+              key={
+                overlay.kind === "unknown"
+                  ? `unknown-${overlay.code}`
+                  : `${overlay.kind}-${overlay.student.id}`
+              }
+              overlay={overlay}
+              houseColor={
+                overlay.kind !== "unknown"
+                  ? houseById(overlay.student.houseId)?.color
+                  : undefined
+              }
+              houseName={
+                overlay.kind !== "unknown"
+                  ? houseById(overlay.student.houseId)?.name
+                  : undefined
+              }
+              onManual={goManual}
+              onDismiss={() => setOverlay(null)}
+            />
           )}
-          <button
-            onClick={goManual}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-white/10 py-3.5 text-sm font-semibold backdrop-blur hover:bg-white/20"
-          >
-            <Search className="h-4 w-4" />
-            Manual check-in
-          </button>
+        </AnimatePresence>
+      </div>
+
+      {/* Last check-in — constant height so the camera never jumps. */}
+      <div className="mx-4 mt-3 shrink-0">
+        {lastCheckin ? (
+          <div className="flex items-center justify-between gap-3 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-3">
+            <span className="flex min-w-0 items-center gap-2 font-bold text-emerald-300">
+              <Check className="h-4 w-4 shrink-0" />
+              <span className="truncate">
+                {lastCheckin.student.firstName} {lastCheckin.student.lastName}
+                {lastHouse && <> · {lastHouse.name}</>}
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-semibold text-emerald-300/90">
+              {relTime(now - lastCheckin.at)}
+            </span>
+          </div>
+        ) : (
+          <div className="rounded-full border border-white/10 px-5 py-3 text-center text-sm text-white/40">
+            Waiting for the first scan…
+          </div>
+        )}
+      </div>
+
+      {/* Session stats */}
+      <div className="grid shrink-0 grid-cols-3 gap-2 px-4 pb-1 pt-4 text-center">
+        <div>
+          <p className="text-3xl font-black tabular-nums">{tally ?? "–"}</p>
+          <p className="mt-0.5 text-sm text-white/50">checked in</p>
         </div>
-      </motion.div>
-    </motion.div>
+        <div>
+          <p className="text-3xl font-black tabular-nums">
+            {pct != null ? `${pct}%` : "–"}
+          </p>
+          <p className="mt-0.5 text-sm text-white/50">of school</p>
+        </div>
+        <div>
+          <p className="text-3xl font-black tabular-nums">
+            {startedAt != null ? formatElapsed(now - startedAt) : "–"}
+          </p>
+          <p className="mt-0.5 text-sm text-white/50">elapsed</p>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="shrink-0 space-y-2 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2">
+        {cameraState === "error" && (
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitTyped();
+            }}
+          >
+            <Input
+              value={typedCode}
+              onChange={(e) => setTypedCode(e.target.value)}
+              placeholder="Type or wedge-scan a student number…"
+              inputMode="numeric"
+              className="bg-white/10 text-white placeholder:text-white/40"
+              autoFocus
+            />
+            <Button type="submit" variant="secondary">
+              <Check className="h-4 w-4" />
+            </Button>
+          </form>
+        )}
+        <button
+          onClick={goManual}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-white/10 py-3.5 text-sm font-semibold backdrop-blur hover:bg-white/20"
+        >
+          <Search className="h-4 w-4" />
+          Manual check-in
+        </button>
+      </div>
+    </>
   );
 }
 
