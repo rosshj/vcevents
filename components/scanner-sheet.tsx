@@ -219,11 +219,6 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
 
   return (
     <>
-      {/* Outside AnimatePresence on purpose: the browser chrome / page
-          canvas flips back to light the moment collapse starts, not after
-          the exit animation — otherwise the page sits on a black canvas
-          while the sheet is still fading out. */}
-      {event && expanded && <ScannerThemeColor />}
       <AnimatePresence>
         {visible && event && (
           <ScannerSurface
@@ -357,13 +352,28 @@ function ScannerSurface({
   // it hanging misaligned; the measured box takes over only in motion.
   const [resting, setResting] = useState(true);
   const restingRef = useRef(true);
+  // The dark canvas / status-bar tint applies only while the sheet
+  // actually covers the screen — keyed to progress, not `expanded`, so
+  // the page behind a still-growing surface keeps its light background,
+  // and flips back the instant a collapse starts.
+  const [covered, setCovered] = useState(expanded);
+  const coveredRef = useRef(expanded);
   useMotionValueEvent(progress, "change", (p) => {
     const r = p <= 0 || p >= 1;
     if (r !== restingRef.current) {
       restingRef.current = r;
       setResting(r);
     }
+    const c = p >= 1;
+    if (c !== coveredRef.current) {
+      coveredRef.current = c;
+      setCovered(c);
+    }
   });
+  // Live context value (props freeze while this component animates out of
+  // AnimatePresence): if the sheet is closing for any reason, restore the
+  // light canvas right away instead of after the exit animation.
+  const { expanded: liveExpanded } = useScanner();
 
   // Post-drag clicks would re-trigger buttons under the finger; swallow
   // them in capture phase after any real pan.
@@ -453,6 +463,8 @@ function ScannerSurface({
       }}
       className="pointer-events-none fixed inset-0 z-50 text-white"
     >
+      {covered && liveExpanded && <ScannerThemeColor />}
+
       {/* Invisible probe carrying the bar geometry, purely to measure. */}
       <div
         ref={probeRef}
