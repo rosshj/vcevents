@@ -139,22 +139,30 @@ await page.waitForSelector("text=Checked in", { timeout: 5000 });
 check("manual: one-tap check-in works", true);
 await page.screenshot({ path: SHOTS + "/08-manual.png" });
 
-// ---- Scanner typed-code paths (the legacy /operate/scan URL re-opens the sheet)
+// ---- Scanner wedge-scan paths (the legacy /operate/scan URL re-opens the
+// sheet; there's no keyboard button — wedge scanners type straight into the
+// sheet, and so does the test)
 if (studentNumber) {
   await page.goto(BASE + "/operate/scan", { waitUntil: "networkidle" });
-  await page.click('button[aria-label="Type a code"]');
-  await page.fill('input[placeholder*="wedge-scan"]', studentNumber);
+  await page.waitForSelector('button[aria-label="Minimize scanner"]', {
+    timeout: 10000,
+  });
+  check(
+    "scanner: session stats visible",
+    (await page.textContent("body")).includes("of school")
+  );
+  await page.keyboard.type(studentNumber);
   await page.keyboard.press("Enter");
   await page.waitForTimeout(800);
   const overlayText = await page.textContent("body");
   check(
-    "scanner: typed student number produces result overlay",
+    "scanner: wedge-scanned student number produces result overlay",
     /Already checked in/i.test(overlayText) || /Grade \d+/.test(overlayText)
   );
   await page.screenshot({ path: SHOTS + "/09-scan-result.png" });
 
   await page.waitForTimeout(3500);
-  await page.fill('input[placeholder*="wedge-scan"]', studentNumber);
+  await page.keyboard.type(studentNumber);
   await page.keyboard.press("Enter");
   await page.waitForTimeout(800);
   check(
@@ -163,7 +171,7 @@ if (studentNumber) {
   );
 
   await page.waitForTimeout(2500);
-  await page.fill('input[placeholder*="wedge-scan"]', "000001");
+  await page.keyboard.type("000001");
   await page.keyboard.press("Enter");
   await page.waitForTimeout(800);
   check(
