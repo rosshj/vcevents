@@ -16,6 +16,7 @@ import {
 import { useSession } from "@/components/session-provider";
 import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { useEventSheet } from "@/components/event-sheet";
+import { useScanner } from "@/components/scanner-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import {
@@ -52,6 +53,7 @@ function EventDetail() {
   const [version, setVersion] = useState(0);
   const { openStudent } = useStudentSheet();
   const { openEditEvent } = useEventSheet();
+  const { expand: expandScanner } = useScanner();
   usePageHeader(event?.name ?? "Event", "/events");
 
   // Refetch when the student sheet checks someone in over this screen.
@@ -108,9 +110,14 @@ function EventDetail() {
     null as (typeof byHouse)[number] | null
   );
 
-  const startOperating = (path: "/operate/scan" | "/operate/manual") => {
+  // Scanning opens the scanner sheet in place; manual is still a page.
+  const startScanning = () => {
     setActiveEventId(event.id);
-    router.push(path);
+    expandScanner();
+  };
+  const startManual = () => {
+    setActiveEventId(event.id);
+    router.push("/operate/manual");
   };
 
   const undo = async (checkinId: string) => {
@@ -135,15 +142,11 @@ function EventDetail() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button size="lg" onClick={() => startOperating("/operate/scan")}>
+        <Button size="lg" onClick={startScanning}>
           <ScanLine className="h-5 w-5" />
           Scan
         </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          onClick={() => startOperating("/operate/manual")}
-        >
+        <Button size="lg" variant="outline" onClick={startManual}>
           <Search className="h-5 w-5" />
           Manual
         </Button>

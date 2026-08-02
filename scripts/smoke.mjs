@@ -106,11 +106,14 @@ check(
   !detailText.includes("Award points") && !/\bEdit\b/.test(detailText)
 );
 await page.screenshot({ path: SHOTS + "/06-event-detail.png" });
+// Scan opens the scanner sheet in place — no route change.
 await page.getByRole("button", { name: "Scan", exact: true }).click();
-await page.waitForURL("**/operate/scan", { timeout: 10000 });
+await page.waitForSelector('button[aria-label="Minimize scanner"]', {
+  timeout: 10000,
+});
 await page.waitForTimeout(2500);
 await page.screenshot({ path: SHOTS + "/07-scanner.png" });
-check("scanner: page loads", true);
+check("scanner: sheet opens", true);
 // Regression guard: the camera must actually start (fake device in CI),
 // not sit on "Starting camera…" forever.
 const camOn = await page.evaluate(() => {
@@ -136,7 +139,7 @@ await page.waitForSelector("text=Checked in", { timeout: 5000 });
 check("manual: one-tap check-in works", true);
 await page.screenshot({ path: SHOTS + "/08-manual.png" });
 
-// ---- Scanner typed-code paths
+// ---- Scanner typed-code paths (the legacy /operate/scan URL re-opens the sheet)
 if (studentNumber) {
   await page.goto(BASE + "/operate/scan", { waitUntil: "networkidle" });
   await page.click('button[aria-label="Type a code"]');
@@ -169,24 +172,35 @@ if (studentNumber) {
   );
 }
 
-// ---- Exit scanner lands on event detail; teacher can undo there
-await page.click('button[aria-label="Exit scanner"]');
+// ---- Minimizing the sheet reveals the event detail underneath
+await page.click('button[aria-label="Minimize scanner"]');
 await page.waitForSelector("text=Attendance by house");
-check("scanner: exit lands on event detail", true);
+check("scanner: minimize reveals event detail", true);
 check(
   "event detail: undo visible for teacher",
   (await page.locator('button[aria-label="Undo check-in"]').count()) > 0
 );
 
-// ---- Operating pill: visible off-scanner, links back
+// ---- Operating bar: docked above the tab bar on root tabs
 await page.goto(BASE + "/leaderboard", { waitUntil: "networkidle" });
 await page.waitForSelector("text=Scanning ·");
-check("operating pill: shows while operating", true);
+check("operating bar: shows while operating", true);
+await page.screenshot({ path: SHOTS + "/09b-operating-bar.png" });
+// Tapping the bar expands the scanner sheet again.
+await page.click('button[aria-label="Expand scanner"]');
+await page.waitForSelector('button[aria-label="Minimize scanner"]', {
+  timeout: 5000,
+});
+check("operating bar: tap expands the sheet", true);
+await page.click('button[aria-label="Minimize scanner"]');
+await page.waitForSelector('button[aria-label="Stop operating this event"]', {
+  timeout: 5000,
+});
 await page.click('button[aria-label="Stop operating this event"]');
 // allow the exit animation to finish before asserting removal
 await page.waitForTimeout(900);
 check(
-  "operating pill: stop clears it",
+  "operating bar: stop clears it",
   (await page.locator("text=Scanning ·").count()) === 0
 );
 

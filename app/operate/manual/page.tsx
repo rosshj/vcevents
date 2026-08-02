@@ -27,7 +27,7 @@ function ManualCheckin() {
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[]>([]);
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({});
-  usePageHeader("Manual check-in", "/operate/scan");
+  usePageHeader("Manual check-in", event ? `/events/${event.id}` : "/events");
 
   // Pre-mark rows for students already checked in to this event.
   useEffect(() => {

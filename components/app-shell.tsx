@@ -9,21 +9,20 @@ import {
   CircleUserRound,
   ClipboardList,
   QrCode,
-  ScanLine,
   Sparkles,
   Trophy,
   Users,
-  X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSession } from "@/components/session-provider";
 import {
   PageHeaderContext,
   type PageHeader,
 } from "@/components/page-header";
-import { repo } from "@/lib/repo";
+import { ScannerSheet } from "@/components/scanner-sheet";
+import { canOperate } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
-import type { Role, SchoolEvent } from "@/lib/types";
+import type { Role } from "@/lib/types";
 
 interface NavItem {
   href: string;
@@ -60,62 +59,6 @@ function navFor(role: Role): NavItem[] {
   }
 }
 
-/** "You're operating X" — one tap back to the scanner from anywhere. */
-function OperatingPill() {
-  const { ready, session, setActiveEventId } = useSession();
-  const [event, setEvent] = useState<SchoolEvent | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const lookup =
-      !ready || !session.activeEventId || session.role === "student"
-        ? Promise.resolve(null)
-        : repo.getEvent(session.activeEventId);
-    void lookup.then((e) => {
-      if (!cancelled) setEvent(e);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, session.activeEventId, session.role]);
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.9rem)] z-40 flex justify-center px-4">
-      <AnimatePresence>
-        {event && (
-          <motion.div
-            initial={{ opacity: 0, y: 14, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{
-              opacity: 0,
-              y: 14,
-              scale: 0.95,
-              transition: { duration: 0.15 },
-            }}
-            transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="pointer-events-auto flex max-w-full items-center gap-1 rounded-full bg-stone-900 py-1 pl-3 pr-1 text-white shadow-float"
-          >
-            <Link
-              href="/operate/scan"
-              className="flex min-w-0 items-center gap-2 py-1 text-xs font-semibold"
-            >
-              <ScanLine className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Scanning · {event.name}</span>
-            </Link>
-            <button
-              onClick={() => setActiveEventId(null)}
-              aria-label="Stop operating this event"
-              className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
   const pathname = usePathname();
@@ -143,18 +86,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, []);
 
-  // The scanner runs full-screen with its own exit affordances.
-  const immersive = pathname === "/operate/scan";
-
   const nav = navFor(session.role);
 
-  if (immersive) {
-    return (
-      <PageHeaderContext.Provider value={headerCtx}>
-        {children}
-      </PageHeaderContext.Provider>
-    );
-  }
+  // The scanner sheet's mini-bar docks above the tab bar on root tabs;
+  // drill-in sub-pages keep a clean stage (the back button anchors them).
+  const showOperatingBar = !pageHeader?.backHref && !pageHeader?.hideNav;
+  const operating = canOperate(session.role) && Boolean(session.activeEventId);
 
   return (
     <PageHeaderContext.Provider value={headerCtx}>
@@ -201,7 +138,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main
         className={cn(
-          "flex-1 pb-32",
+          "flex-1",
+          operating && showOperatingBar ? "pb-44" : "pb-32",
           !pageHeader && "pt-[calc(env(safe-area-inset-top)+0.5rem)]"
         )}
       >
@@ -242,9 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
       )}
 
-      {/* Only on root tabs — focused sub-pages (forms, drill-ins) keep a
-          clean stage; the back button already anchors navigation there. */}
-      {!pageHeader?.backHref && <OperatingPill />}
+      <ScannerSheet showBar={showOperatingBar} />
     </div>
     </PageHeaderContext.Provider>
   );

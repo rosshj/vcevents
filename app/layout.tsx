@@ -5,6 +5,7 @@ import { SessionProvider } from "@/components/session-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { StudentSheetProvider } from "@/components/student-sheet";
 import { EventSheetProvider } from "@/components/event-sheet";
+import { ScannerProvider } from "@/components/scanner-sheet";
 import { AppShell } from "@/components/app-shell";
 import { APP_NAME, SCHOOL_NAME } from "@/lib/config";
 
@@ -54,7 +55,9 @@ export default function RootLayout({
           <MotionProvider>
             <StudentSheetProvider>
               <EventSheetProvider>
-                <AppShell>{children}</AppShell>
+                <ScannerProvider>
+                  <AppShell>{children}</AppShell>
+                </ScannerProvider>
               </EventSheetProvider>
             </StudentSheetProvider>
           </MotionProvider>
