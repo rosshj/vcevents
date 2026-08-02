@@ -395,7 +395,9 @@ function ScannerSurface({
     const mm = m.current;
     return mm ? mm.barHeight + p * (mm.vh - mm.barHeight) : 0;
   });
-  const radius = useTransform(progress, [0, 1], [20, 0]);
+  // Corners grow with the surface (native sheets keep device-radius
+  // corners at full screen) rather than flattening out mid-morph.
+  const radius = useTransform(progress, [0, 1], [20, 48]);
   const bg = useTransform(progress, [0, 1], ["#1c1917", "#0c0a09"]);
   // Content follows the surface's top edge; opacity hands over midway.
   const sheetY = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
@@ -470,7 +472,7 @@ function ScannerSurface({
               className={cn(
                 "pointer-events-auto absolute touch-none shadow-float",
                 expanded
-                  ? "inset-0 bg-stone-950"
+                  ? "inset-0 rounded-[48px] bg-stone-950"
                   : cn(BAR_GEOM, "rounded-[20px] bg-stone-900")
               )}
             />
