@@ -12,7 +12,13 @@ import {
 import { useRouter } from "next/navigation";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+  useTransform,
+} from "framer-motion";
 import {
   CameraOff,
   Check,
@@ -243,10 +249,27 @@ function ScannerThemeColor() {
   return null;
 }
 
+const SPRING = { type: "spring", stiffness: 380, damping: 40 } as const;
+
+interface SurfaceMetrics {
+  barTop: number;
+  barLeft: number;
+  barWidth: number;
+  barHeight: number;
+  vw: number;
+  vh: number;
+}
+
 /**
- * The persistent scanner UI: drag wrapper + morphing surface + content
- * layers. Mounted whenever there's something to show (sheet or bar) and
- * kept alive across the two states so the surface really transforms.
+ * The persistent scanner UI: gesture wrapper + morphing surface + content
+ * layers, mounted whenever there's something to show (sheet or bar).
+ *
+ * The morph is driven by a continuous `progress` motion value (0 = bar,
+ * 1 = sheet). Pans scrub it directly — the surface's top edge tracks the
+ * finger 1:1, so even a slow drag shows the transition — and release
+ * springs it to whichever end the position/velocity picked. Taps and
+ * buttons just flip the React state; an effect springs `progress` to
+ * match.
  */
 function ScannerSurface({
   event,
@@ -271,8 +294,93 @@ function ScannerSurface({
   onCollapse: () => void;
   onStop: () => void;
 }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const probeRef = useRef<HTMLDivElement>(null);
+  const metricsRef = useRef<SurfaceMetrics | null>(null);
+  const [measured, setMeasured] = useState(false);
+  const progress = useMotionValue(expanded ? 1 : 0);
+  const panStart = useRef<number | null>(null);
+  const panMoved = useRef(false);
+  const expandedRef = useRef(expanded);
+  useEffect(() => {
+    expandedRef.current = expanded;
+  }, [expanded]);
+
+  // Measure the bar geometry (offset*, so entrance transforms don't skew
+  // it) and the viewport. Everything below interpolates between the two.
+  useEffect(() => {
+    const measure = () => {
+      const probe = probeRef.current;
+      const wrapper = wrapperRef.current;
+      if (!probe || !wrapper) return;
+      metricsRef.current = {
+        barTop: probe.offsetTop,
+        barLeft: probe.offsetLeft,
+        barWidth: probe.offsetWidth,
+        barHeight: probe.offsetHeight,
+        vw: wrapper.clientWidth,
+        vh: wrapper.clientHeight,
+      };
+      setMeasured(true);
+      progress.set(progress.get()); // recompute transforms with fresh metrics
+    };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [progress]);
+
+  // Taps, buttons, and gesture releases flip `expanded`; the visual state
+  // follows by springing progress to match — from wherever the finger
+  // left it, so gestures hand off seamlessly.
+  useEffect(() => {
+    const controls = animate(progress, expanded ? 1 : 0, SPRING);
+    return () => controls.stop();
+  }, [expanded, progress]);
+
+  // Post-drag clicks would re-trigger buttons under the finger; swallow
+  // them in capture phase after any real pan.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onClickCapture = (e: MouseEvent) => {
+      if (panMoved.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        panMoved.current = false;
+      }
+    };
+    el.addEventListener("click", onClickCapture, true);
+    return () => el.removeEventListener("click", onClickCapture, true);
+  }, []);
+
+  const m = metricsRef;
+  const top = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
+  const left = useTransform(
+    progress,
+    (p) => (1 - p) * (m.current?.barLeft ?? 0)
+  );
+  const width = useTransform(progress, (p) => {
+    const mm = m.current;
+    return mm ? mm.barWidth + p * (mm.vw - mm.barWidth) : 0;
+  });
+  const height = useTransform(progress, (p) => {
+    const mm = m.current;
+    return mm ? mm.barHeight + p * (mm.vh - mm.barHeight) : 0;
+  });
+  const radius = useTransform(progress, [0, 1], [20, 0]);
+  const bg = useTransform(progress, [0, 1], ["#1c1917", "#0c0a09"]);
+  // Content follows the surface's top edge; opacity hands over midway.
+  const sheetY = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
+  const barY = useTransform(progress, (p) => -p * (m.current?.barTop ?? 0));
+  const sheetContentOpacity = useTransform(progress, [0.55, 0.95], [0, 1]);
+  const barContentOpacity = useTransform(progress, [0, 0.35], [1, 0]);
+
   return (
     <motion.div
+      ref={wrapperRef}
       // Entering as the sheet: present from the bottom. Entering as the
       // bar (e.g. navigating to a root tab while operating): fade up.
       initial={expanded ? { y: "110%" } : { y: 16, opacity: 0 }}
@@ -283,101 +391,131 @@ function ScannerSurface({
           : { y: 24, opacity: 0, transition: { duration: 0.2 } }
       }
       transition={{ type: "spring", stiffness: 400, damping: 38 }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={expanded ? { top: 0, bottom: 0.55 } : { top: 0.6, bottom: 0 }}
-      dragMomentum={false}
-      onDragEnd={(_, info) => {
-        if (expanded) {
-          if (info.offset.y > 120 || info.velocity.y > 600) onCollapse();
-        } else if (info.offset.y < -32 || info.velocity.y < -400) {
-          onExpand();
+      onTapStart={() => {
+        panMoved.current = false;
+      }}
+      onPanStart={() => {
+        panMoved.current = false;
+        progress.stop();
+        panStart.current = progress.get();
+      }}
+      onPan={(_, info) => {
+        const mm = metricsRef.current;
+        const start = panStart.current;
+        if (!mm || start === null || mm.barTop <= 0) return;
+        if (Math.abs(info.offset.y) > 8) panMoved.current = true;
+        const p = start - info.offset.y / mm.barTop;
+        progress.set(Math.min(1, Math.max(0, p)));
+      }}
+      onPanEnd={(_, info) => {
+        if (panStart.current === null) return;
+        panStart.current = null;
+        const p = progress.get();
+        const v = info.velocity.y;
+        let target: boolean;
+        if (v < -500) target = true;
+        else if (v > 500) target = false;
+        else target = expandedRef.current ? p > 0.8 : p > 0.2;
+        if (target !== expandedRef.current) {
+          if (target) onExpand();
+          else onCollapse();
+        } else {
+          void animate(progress, target ? 1 : 0, SPRING);
         }
       }}
       className="pointer-events-none fixed inset-0 z-50 text-white"
     >
-      {/* The morphing dark surface — one element, no children, animating
-          between full-screen and the docked-bar geometry. */}
-      <motion.div
-        layout
-        onClick={expanded ? undefined : onExpand}
-        animate={{
-          borderRadius: expanded ? 0 : 20,
-          backgroundColor: expanded ? "#0c0a09" : "#1c1917",
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 380,
-          damping: 40,
-          borderRadius: { duration: 0.25 },
-          backgroundColor: { duration: 0.25 },
-        }}
-        className={cn(
-          "pointer-events-auto absolute shadow-float",
-          expanded ? "inset-0" : BAR_GEOM
-        )}
+      {/* Invisible probe carrying the bar geometry, purely to measure. */}
+      <div
+        ref={probeRef}
+        aria-hidden
+        className={cn("pointer-events-none absolute opacity-0", BAR_GEOM)}
       />
 
-      {/* Content layers crossfade above the surface; they never stretch. */}
-      <AnimatePresence initial={false}>
-        {expanded ? (
+      {measured && (
+        <>
+          {/* The morphing dark surface — one element, no children, its
+              box interpolated between full-screen and the docked bar. */}
           <motion.div
-            key="sheet-content"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: 0.25, delay: 0.08 } }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            className="pointer-events-auto absolute inset-0 flex flex-col"
-          >
-            <SheetContent
-              event={event}
-              tally={tally}
-              schoolSize={schoolSize}
-              startedAt={startedAt}
-              lastCheckin={lastCheckin}
-              onCheckin={onCheckin}
-              onCollapse={onCollapse}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="bar-content"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: 0.2, delay: 0.1 } }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            className={cn(
-              "pointer-events-auto absolute flex items-center gap-2 pl-4 pr-2",
-              BAR_GEOM
+            onClick={expanded ? undefined : onExpand}
+            style={{ top, left, width, height, borderRadius: radius, backgroundColor: bg }}
+            className="pointer-events-auto absolute touch-none shadow-float"
+          />
+
+          {/* Content layers ride the surface and crossfade over it. */}
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.div
+                key="sheet-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { duration: 0.15 } }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                style={{ y: sheetY }}
+                className="pointer-events-auto absolute inset-0 touch-none"
+              >
+                <motion.div
+                  style={{ opacity: sheetContentOpacity }}
+                  className="flex h-full min-h-0 flex-col"
+                >
+                  <SheetContent
+                    event={event}
+                    tally={tally}
+                    schoolSize={schoolSize}
+                    startedAt={startedAt}
+                    lastCheckin={lastCheckin}
+                    onCheckin={onCheckin}
+                    onCollapse={onCollapse}
+                  />
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="bar-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { duration: 0.15 } }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                style={{ y: barY }}
+                className={cn(
+                  "pointer-events-auto absolute touch-none",
+                  BAR_GEOM
+                )}
+              >
+                <motion.div
+                  style={{ opacity: barContentOpacity }}
+                  className="flex h-full items-center gap-2 pl-4 pr-2"
+                >
+                  <button
+                    onClick={onExpand}
+                    aria-label="Expand scanner"
+                    className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold leading-tight">
+                        {event.name}
+                      </span>
+                      <span className="block text-[11px] leading-tight text-white/60">
+                        Scanning · {tally ?? "–"} checked in
+                      </span>
+                    </span>
+                    <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
+                  </button>
+                  <button
+                    onClick={onStop}
+                    aria-label="Stop operating this event"
+                    className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
+                  >
+                    Stop
+                  </button>
+                </motion.div>
+              </motion.div>
             )}
-          >
-            <button
-              onClick={onExpand}
-              aria-label="Expand scanner"
-              className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
-            >
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold leading-tight">
-                  {event.name}
-                </span>
-                <span className="block text-[11px] leading-tight text-white/60">
-                  Scanning · {tally ?? "–"} checked in
-                </span>
-              </span>
-              <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
-            </button>
-            <button
-              onClick={onStop}
-              aria-label="Stop operating this event"
-              className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
-            >
-              Stop
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </>
+      )}
     </motion.div>
   );
 }
