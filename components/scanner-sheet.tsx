@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import {
@@ -31,9 +30,9 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
+import { GradeFilter, SlidingSegmented } from "@/components/grade-filter";
 import { useThemeColor } from "@/components/use-theme-color";
-import { canAddStudents, canOperate } from "@/lib/permissions";
-import { GRADES } from "@/lib/config";
+import { canOperate } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import { decodePassPayload } from "@/lib/qr";
 import type { SchoolEvent, Student } from "@/lib/types";
@@ -872,20 +871,17 @@ function SheetContent({
       </div>
 
       {/* Every check-in method lives here: camera or lookup. */}
-      <div className="mx-4 mb-2.5 flex shrink-0 rounded-full bg-white/10 p-1">
-        {(["scan", "search"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => onModeChange(m)}
-            className={cn(
-              "flex-1 rounded-full py-2 text-[13px] font-bold transition-colors",
-              mode === m ? "bg-white text-stone-900" : "text-white/60"
-            )}
-          >
-            {m === "scan" ? "Scan" : "Search"}
-          </button>
-        ))}
-      </div>
+      <SlidingSegmented<ScanMode>
+        label="Check-in method"
+        options={[
+          { value: "scan", label: "Scan" },
+          { value: "search", label: "Search" },
+        ]}
+        value={mode}
+        onChange={onModeChange}
+        variant="dark"
+        className="mx-4 mb-2.5 shrink-0"
+      />
 
       {mode === "scan" ? (
         /* Camera viewport — a rounded panel, not full bleed. */
@@ -963,7 +959,7 @@ function SheetContent({
           </AnimatePresence>
         </div>
       ) : (
-        <SearchPanel event={event} onCheckin={onCheckin} onCollapse={onCollapse} />
+        <SearchPanel event={event} onCheckin={onCheckin} />
       )}
 
       {/* Last check-in — constant height so the panel never jumps. */}
@@ -1015,14 +1011,11 @@ function SheetContent({
 function SearchPanel({
   event,
   onCheckin,
-  onCollapse,
 }: {
   event: SchoolEvent;
   onCheckin: (student: Student) => void;
-  onCollapse: () => void;
 }) {
   const { session, houseById } = useSession();
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
   const [results, setResults] = useState<Student[]>([]);
@@ -1081,11 +1074,6 @@ function SearchPanel({
     }));
   };
 
-  const goAdd = () => {
-    onCollapse();
-    router.push("/students/new?checkin=1");
-  };
-
   return (
     <div
       data-scroll-region
@@ -1098,28 +1086,7 @@ function SearchPanel({
         className="border-transparent bg-white/10 text-white placeholder:text-white/40"
         autoFocus
       />
-      <div className="flex flex-wrap items-center gap-1.5">
-        {GRADES.map((g) => (
-          <button
-            key={g}
-            onClick={() => setGrade(grade === g ? null : g)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-[11.5px] font-bold",
-              grade === g ? "bg-white text-stone-900" : "bg-white/10 text-white/70"
-            )}
-          >
-            G{g}
-          </button>
-        ))}
-        {canAddStudents(session.role) && (
-          <button
-            onClick={goAdd}
-            className="ml-auto rounded-full bg-white/10 px-3 py-1.5 text-[11.5px] font-bold text-white/70"
-          >
-            + Add
-          </button>
-        )}
-      </div>
+      <GradeFilter value={grade} onChange={setGrade} variant="dark" />
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/50">
