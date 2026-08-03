@@ -686,6 +686,27 @@ function SheetContent({
     };
   }, []);
 
+  // The iOS keyboard shrinks the *visual* viewport but not the layout
+  // viewport this fixed sheet is sized to — without compensation the
+  // bottom of the search list hides behind the keyboard. Track the
+  // overlap and give the content that much bottom padding, so the panel
+  // compresses above the keyboard and the list stays fully scrollable.
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () =>
+      setKeyboardInset(
+        Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      );
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
   const showOverlay = useCallback((o: Overlay) => {
     if (overlayTimer.current) clearTimeout(overlayTimer.current);
     setOverlay(o);
@@ -851,7 +872,10 @@ function SheetContent({
       : null;
 
   return (
-    <>
+    <div
+      className="flex min-h-0 flex-1 flex-col transition-[padding] duration-200"
+      style={{ paddingBottom: keyboardInset }}
+    >
       {/* Grab handle — the sheet swipes down into the mini-bar. */}
       <div className="flex shrink-0 justify-center pt-[max(env(safe-area-inset-top),0.75rem)]">
         <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/25" />
@@ -1003,7 +1027,7 @@ function SheetContent({
           <p className="mt-0.5 text-sm text-white/50">elapsed</p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
