@@ -95,19 +95,19 @@ check(
 );
 await page.screenshot({ path: SHOTS + "/05-events-hub.png" });
 
-// ---- Event detail: stats + start scanning
+// ---- Event detail: live scoreboard + start scanning
 await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.click("text=House Games Assembly");
-await page.waitForSelector("text=Attendance by house");
+await page.waitForSelector("text=House race");
 const detailText = await page.textContent("body");
-check("event detail: attendance section", detailText.includes("checked in"));
+check("event detail: scoreboard section", detailText.includes("checked in"));
 check(
   "event detail: teacher has no award/edit",
   !detailText.includes("Award points") && !/\bEdit\b/.test(detailText)
 );
 await page.screenshot({ path: SHOTS + "/06-event-detail.png" });
-// Scan opens the scanner sheet in place — no route change.
-await page.getByRole("button", { name: "Scan", exact: true }).click();
+// The docked bar is the scan control — tapping it starts + opens the sheet.
+await page.click('button[aria-label="Start scanning"]');
 await page.waitForSelector('button[aria-label="Minimize scanner"]', {
   timeout: 10000,
 });
@@ -182,7 +182,7 @@ if (studentNumber) {
 
 // ---- Minimizing the sheet reveals the event detail underneath
 await page.click('button[aria-label="Minimize scanner"]');
-await page.waitForSelector("text=Attendance by house");
+await page.waitForSelector("text=House race");
 check("scanner: minimize reveals event detail", true);
 check(
   "event detail: undo visible for teacher",
@@ -218,7 +218,7 @@ await page.click("text=House Executive");
 await page.waitForTimeout(300);
 await page.goto(BASE + "/events", { waitUntil: "networkidle" });
 await page.click("text=House Games Assembly");
-await page.waitForSelector("text=Attendance by house");
+await page.waitForSelector("text=House race");
 check(
   "gating: executive cannot undo",
   (await page.locator('button[aria-label="Undo check-in"]').count()) === 0

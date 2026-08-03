@@ -29,6 +29,7 @@ import {
 } from "@/components/bklit";
 import { CHART_ACCENT, GRADES } from "@/lib/config";
 import type { House } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /**
  * House display order for charts: keeps Loyola and Xavier non-adjacent so
@@ -58,6 +59,35 @@ export function EventAttendanceChart({
       <BarXAxis />
       <ChartTooltip />
     </BarChart>
+  );
+}
+
+/** Stacked house-share bar: an event's turnout split by house color. */
+export function HouseSplitBar({
+  segments,
+  total,
+  className,
+}: {
+  segments: { color: string; count: number }[];
+  total: number;
+  className?: string;
+}) {
+  if (total === 0) return null;
+  return (
+    <div className={cn("flex overflow-hidden", className)}>
+      {segments
+        .filter((s) => s.count > 0)
+        .map((s, i) => (
+          <span
+            key={i}
+            className="h-full"
+            style={{
+              width: `${(s.count / total) * 100}%`,
+              backgroundColor: s.color,
+            }}
+          />
+        ))}
+    </div>
   );
 }
 

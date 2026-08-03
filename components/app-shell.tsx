@@ -88,9 +88,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const nav = navFor(session.role);
 
-  // The scanner sheet's mini-bar docks above the tab bar on root tabs;
-  // drill-in sub-pages keep a clean stage (the back button anchors them).
-  const showOperatingBar = !pageHeader?.backHref && !pageHeader?.hideNav;
+  // The scanner sheet's mini-bar docks above the tab bar on root tabs and
+  // on event detail screens (where it's the scan control); other drill-in
+  // sub-pages keep a clean stage.
+  const isEventDetail = /^\/events\/[^/]+$/.test(pathname);
+  const showOperatingBar =
+    (!pageHeader?.backHref || isEventDetail) && !pageHeader?.hideNav;
   const operating = canOperate(session.role) && Boolean(session.activeEventId);
 
   return (
@@ -110,9 +113,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <ChevronLeft className="h-6 w-6" />
               </Link>
-              <h1 className="min-w-0 truncate text-[17px] font-bold text-stone-900">
+              <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold text-stone-900">
                 {pageHeader.title}
               </h1>
+              {pageHeader.actions && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {pageHeader.actions}
+                </div>
+              )}
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-5 pb-3 pt-4">

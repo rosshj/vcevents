@@ -15,7 +15,7 @@ import { useEventSheet } from "@/components/event-sheet";
 import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
-import { chartHouseOrder } from "@/components/report-charts";
+import { chartHouseOrder, HouseSplitBar } from "@/components/report-charts";
 import { canManageEvents, canViewEvents } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import {
@@ -132,37 +132,14 @@ function DateTile({ date, muted }: { date: string; muted?: boolean }) {
   );
 }
 
-/** Four-color house split of an event's turnout. */
-function HouseSplitBar({
-  houses,
-  houseCounts,
-  total,
-  className,
-}: {
-  houses: House[];
-  houseCounts: Record<string, number>;
-  total: number;
-  className?: string;
-}) {
-  if (total === 0) return null;
-  return (
-    <div className={cn("flex overflow-hidden", className)}>
-      {houses.map((h) => {
-        const count = houseCounts[h.id] ?? 0;
-        if (count === 0) return null;
-        return (
-          <span
-            key={h.id}
-            className="h-full"
-            style={{
-              width: `${(count / total) * 100}%`,
-              backgroundColor: h.color,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
+function houseSegments(
+  houses: House[],
+  houseCounts: Record<string, number>
+): { color: string; count: number }[] {
+  return chartHouseOrder(houses).map((h) => ({
+    color: h.color,
+    count: houseCounts[h.id] ?? 0,
+  }));
 }
 
 /** Today's event, promoted out of the list: the live scoreboard. */
@@ -176,7 +153,6 @@ function TodayHero({
   schoolSize: number;
 }) {
   const { event, checkins, houseCounts } = row;
-  const ordered = chartHouseOrder(houses);
   const pct = pctOfSchool(checkins, schoolSize);
   const leader = houses.reduce(
     (best, h) =>
@@ -249,8 +225,7 @@ function TodayHero({
 
       {checkins > 0 ? (
         <HouseSplitBar
-          houses={ordered}
-          houseCounts={houseCounts}
+          segments={houseSegments(houses, houseCounts)}
           total={checkins}
           className="h-3 rounded-full"
         />
@@ -352,8 +327,7 @@ function EventRowCard({
       </div>
       {past && (
         <HouseSplitBar
-          houses={chartHouseOrder(houses)}
-          houseCounts={houseCounts}
+          segments={houseSegments(houses, houseCounts)}
           total={checkins}
           className="h-1.5"
         />

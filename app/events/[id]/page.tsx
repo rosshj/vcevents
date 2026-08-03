@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import NumberFlow from "@number-flow/react";
 import {
   ChevronRight,
   Keyboard,
   Pencil,
   QrCode,
   ScanBarcode,
-  ScanLine,
-  Search,
   Trophy,
   Undo2,
 } from "lucide-react";
@@ -23,8 +22,18 @@ import { usePageHeader } from "@/components/page-header";
 import {
   ArrivalsChart,
   HousePie,
+  HouseSplitBar,
   chartHouseOrder,
 } from "@/components/report-charts";
+import {
+  Legend,
+  LegendItemComponent,
+  LegendLabel,
+  LegendMarker,
+  LegendProgress,
+  LegendValue,
+  type LegendItemData,
+} from "@/components/bklit";
 import {
   canAwardPoints,
   canManageEvents,
@@ -33,10 +42,12 @@ import {
 } from "@/lib/permissions";
 import { repo } from "@/lib/repo";
 import {
+  daysUntil,
   eventTiming,
   formatClockShort,
   formatEventDate,
   formatTime,
+  relativeTime,
 } from "@/lib/format";
 import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
@@ -78,16 +89,48 @@ function arrivalBuckets(
 function EventDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { session, houses, houseById, setActiveEventId } = useSession();
+  const { session, houses, houseById } = useSession();
   const [event, setEvent] = useState<SchoolEvent | null>(null);
   const [rows, setRows] = useState<CheckinRow[] | null>(null);
   const [awarded, setAwarded] = useState(0);
   const [schoolSize, setSchoolSize] = useState(0);
   const [version, setVersion] = useState(0);
+  // Ticks for the live feed's relative times and the pace stat.
+  const [now, setNow] = useState(() => Date.now());
   const { openStudent } = useStudentSheet();
   const { openEditEvent } = useEventSheet();
-  const { expand: expandScanner } = useScanner();
-  usePageHeader(event?.name ?? "Event", "/events");
+  const { setProspect } = useScanner();
+
+  // Edit lives in the sticky header, like actions on root pages.
+  const { role } = session;
+  const headerActions = useMemo(
+    () =>
+      event && canManageEvents(role) ? (
+        <button
+          onClick={() => openEditEvent(event)}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <Pencil className="h-4 w-4" />
+          Edit
+        </button>
+      ) : undefined,
+    [event, role, openEditEvent]
+  );
+  usePageHeader(event?.name ?? "Event", "/events", { actions: headerActions });
+
+  // Offer this event to the scanner bar ("Ready to scan") while viewing a
+  // live or upcoming event.
+  useEffect(() => {
+    if (!event || eventTiming(event.date) === "past") return;
+    setProspect(event.id);
+    return () => setProspect(null);
+  }, [event, setProspect]);
+
+  useEffect(() => {
+    if (!event || eventTiming(event.date) !== "today") return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [event]);
 
   // Refetch when the student sheet checks someone in over this screen.
   useEffect(() => {
@@ -243,22 +286,11 @@ function EventDetail() {
 
     return (
       <Screen className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm text-stone-500">
-            {formatEventDate(event.date)}
-            <Badge variant="secondary">Recap</Badge>
-            {event.tier === "major" && <Badge>Major</Badge>}
-          </p>
-          {canManageEvents(session.role) && (
-            <button
-              onClick={() => openEditEvent(event)}
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-          )}
-        </div>
+        <p className="flex items-center gap-1.5 text-sm text-stone-500">
+          {formatEventDate(event.date)}
+          <Badge variant="secondary">Recap</Badge>
+          {event.tier === "major" && <Badge>Major</Badge>}
+        </p>
 
         {leader && leader.count > 0 && (
           <div
@@ -401,116 +433,180 @@ function EventDetail() {
     );
   }
 
-  // ---------- Today / upcoming: the operating layout ----------
-  const maxCount = Math.max(...byHouse.map((b) => b.count), 1);
-
-  // Scanning opens the scanner sheet in place; manual is still a page.
-  const startScanning = () => {
-    setActiveEventId(event.id);
-    expandScanner();
-  };
-  const startManual = () => {
-    setActiveEventId(event.id);
-    router.push("/operate/manual");
-  };
+  // ---------- Today / upcoming: the live scoreboard ----------
+  const isToday = timing === "today";
+  const total = rows?.length ?? 0;
+  const pct = schoolSize > 0 ? Math.round((total / schoolSize) * 100) : null;
+  const recent = isToday
+    ? (rows ?? []).filter(
+        (r) => now - new Date(r.checkin.createdAt).getTime() < 900_000
+      ).length
+    : 0;
+  const standings = [...byHouse].sort((a, b) => b.count - a.count);
+  const legendItems: LegendItemData[] = standings.map((b, i) => ({
+    label: `${b.house.name}${i === 0 && b.count > 0 ? " 👑" : ""}`,
+    value: b.count,
+    maxValue: Math.max(standings[0]?.count ?? 0, 1),
+    color: b.house.color,
+  }));
+  const feedRows = [...(rows ?? [])].sort((a, b) =>
+    b.checkin.createdAt.localeCompare(a.checkin.createdAt)
+  );
 
   return (
     <Screen className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-stone-500">
-          {formatEventDate(event.date)}
-          {timing === "today" && (
-            <Badge variant="green" className="ml-1.5">
-              Today
-            </Badge>
-          )}
-        </p>
-        <Badge variant={event.tier === "major" ? "default" : "secondary"}>
-          {event.tier === "major" ? "Major" : "Minor"}
-        </Badge>
+      <p className="text-sm text-stone-500">
+        {formatEventDate(event.date)} ·{" "}
+        {event.tier === "major" ? "Major" : "Minor"}
+      </p>
+
+      {/* Box score — the same treatment as the sheet and the recap. */}
+      <div className="grid grid-cols-3 gap-2 py-1 text-center">
+        <div>
+          <NumberFlow
+            value={total}
+            className="text-2xl font-black tabular-nums text-stone-900"
+          />
+          <p className="text-xs text-stone-500">checked in</p>
+        </div>
+        <div>
+          <p className="text-2xl font-black tabular-nums text-stone-900">
+            {pct != null ? `${pct}%` : "–"}
+          </p>
+          <p className="text-xs text-stone-500">of school</p>
+        </div>
+        {isToday ? (
+          <div>
+            <p className="text-2xl font-black tabular-nums text-stone-900">
+              +{recent}
+            </p>
+            <p className="text-xs text-stone-500">last 15 min</p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-2xl font-black tabular-nums text-stone-900">
+              {daysUntil(event.date)}d
+            </p>
+            <p className="text-xs text-stone-500">until start</p>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button size="lg" onClick={startScanning}>
-          <ScanLine className="h-5 w-5" />
-          Scan
-        </Button>
-        <Button size="lg" variant="outline" onClick={startManual}>
-          <Search className="h-5 w-5" />
-          Manual
-        </Button>
-      </div>
-      {(canAwardPoints(session.role) || canManageEvents(session.role)) && (
-        <div className="flex gap-2">
-          {canAwardPoints(session.role) && (
-            <Link
-              href={`/events/${event.id}/award`}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              <Trophy className="h-4 w-4" />
-              {awarded > 0
-                ? `Points awarded: ${awarded} of ${event.pointsPool}`
-                : `Award points (pool: ${event.pointsPool})`}
-            </Link>
-          )}
-          {canManageEvents(session.role) && (
-            <button
-              onClick={() => openEditEvent(event)}
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-          )}
+      {timing === "future" && event.tier === "major" && (
+        <div className="flex justify-center">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+            <Trophy className="h-3.5 w-3.5" />
+            {event.pointsPool.toLocaleString()} pts at stake
+          </span>
         </div>
       )}
 
-      <div>
-        <div className="mb-2 flex items-baseline justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wide text-stone-500">
-            Attendance by house
-          </h2>
-          <p className="text-sm text-stone-600">
-            <strong className="text-lg tabular-nums text-stone-900">
-              {rows?.length ?? "–"}
-            </strong>{" "}
-            checked in
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          {byHouse.map(({ house, count }) => (
-            <div
-              key={house.id}
-              className="flex items-center gap-3 rounded-2xl px-4 py-2.5"
-              style={{ background: houseTint(house.color, 8) }}
-            >
-              <span
-                className="w-20 shrink-0 text-sm font-bold"
-                style={{ color: `color-mix(in srgb, ${house.color} 80%, black)` }}
-              >
-                {house.name}
-              </span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/80">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${(count / maxCount) * 100}%`,
-                    backgroundColor: house.color,
-                  }}
-                />
-              </div>
-              <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums text-stone-700">
-                {count}
-              </span>
-              {leader && leader.count > 0 && leader.house.id === house.id && (
-                <Badge variant="green">Leading</Badge>
-              )}
+      <div className="rounded-3xl bg-white p-4 shadow-soft">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-stone-500">
+          House race
+        </h2>
+        {total > 0 ? (
+          <HouseSplitBar
+            segments={chartHouseOrder(houses).map((h) => ({
+              color: h.color,
+              count: byHouse.find((b) => b.house.id === h.id)?.count ?? 0,
+            }))}
+            total={total}
+            className="mb-4 h-3 rounded-full"
+          />
+        ) : (
+          <div className="mb-4 h-3 rounded-full bg-stone-100" />
+        )}
+        <Legend items={legendItems}>
+          <LegendItemComponent className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2.5 gap-y-1">
+            <LegendMarker />
+            <LegendLabel />
+            <LegendValue />
+            <div className="col-span-full">
+              <LegendProgress />
             </div>
-          ))}
-        </div>
+          </LegendItemComponent>
+        </Legend>
       </div>
 
-      {checkinsList}
+      {canAwardPoints(session.role) && (
+        <Link
+          href={`/events/${event.id}/award`}
+          className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-200"
+        >
+          <Trophy className="h-3.5 w-3.5" />
+          {awarded > 0
+            ? `Points awarded · ${awarded} of ${event.pointsPool}`
+            : `Award points · pool ${event.pointsPool}`}
+        </Link>
+      )}
+
+      <div>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+          Check-ins{isToday ? " · live" : ""}
+        </h2>
+        {!rows ? (
+          <div className="h-32 animate-pulse rounded-2xl bg-stone-200/60" />
+        ) : feedRows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-stone-500">
+            {isToday
+              ? "Nobody's checked in yet — tap the bar below to start scanning."
+              : "Nobody's checked in yet."}
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
+            {feedRows.map(({ checkin, student }) => {
+              const house = student ? houseById(student.houseId) : undefined;
+              const method = METHOD_META[checkin.method];
+              return (
+                <div
+                  key={checkin.id}
+                  className="flex items-center gap-3 border-b border-stone-100 px-4 py-2 last:border-0"
+                >
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: house?.color ?? "#d6d3d1" }}
+                  />
+                  {student ? (
+                    <button
+                      onClick={() => openStudent(student.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="truncate text-sm font-semibold text-stone-900">
+                        {student.firstName} {student.lastName}
+                      </p>
+                      <p className="flex items-center gap-1 text-xs text-stone-500">
+                        <method.Icon className="h-3 w-3" />
+                        {method.label} · Gr. {student.grade}
+                      </p>
+                    </button>
+                  ) : (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-stone-400">
+                        (student removed)
+                      </p>
+                    </div>
+                  )}
+                  <span className="shrink-0 text-xs tabular-nums text-stone-400">
+                    {relativeTime(checkin.createdAt, now)}
+                  </span>
+                  {canUndoCheckin(session.role) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => undo(checkin.id)}
+                      aria-label="Undo check-in"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                      Undo
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </Screen>
   );
 }

@@ -8,7 +8,7 @@ export interface PageHeader {
   backHref?: string;
   /** Root variant only: line under the title. */
   subtitle?: string;
-  /** Root variant only: buttons on the right (memoize at the call site). */
+  /** Buttons on the right, both variants (memoize at the call site). */
   actions?: React.ReactNode;
   /** Focused flows (forms) drop the tab bar entirely. */
   hideNav?: boolean;
@@ -38,7 +38,12 @@ export function usePageChrome(header: PageHeader) {
 export function usePageHeader(
   title: string,
   backHref: string,
-  opts?: { hideNav?: boolean }
+  opts?: { hideNav?: boolean; actions?: React.ReactNode }
 ) {
-  usePageChrome({ title, backHref, hideNav: opts?.hideNav ?? false });
+  usePageChrome({
+    title,
+    backHref,
+    hideNav: opts?.hideNav ?? false,
+    actions: opts?.actions,
+  });
 }
