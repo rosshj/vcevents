@@ -36,6 +36,34 @@ export function formatTime(iso: string): string {
   });
 }
 
+/** Whole days from today to the given date (positive = future). */
+export function daysUntil(date: string): number {
+  const ms =
+    parseLocalDate(date).getTime() - parseLocalDate(todayString()).getTime();
+  return Math.round(ms / 86_400_000);
+}
+
+export function monthShort(date: string): string {
+  return parseLocalDate(date)
+    .toLocaleDateString("en-CA", { month: "short" })
+    .toUpperCase();
+}
+
+export function weekdayShort(date: string): string {
+  return parseLocalDate(date).toLocaleDateString("en-CA", { weekday: "short" });
+}
+
+export function dayOfMonth(date: string): number {
+  return parseLocalDate(date).getDate();
+}
+
+/** "6:40" — clock time without the day period, for chart axes. */
+export function formatClockShort(ms: number): string {
+  return new Date(ms)
+    .toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })
+    .replace(/\s?[ap]\.?m\.?$/i, "");
+}
+
 export type EventTiming = "past" | "today" | "future";
 
 export function eventTiming(date: string): EventTiming {

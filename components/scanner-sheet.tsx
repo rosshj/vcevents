@@ -206,6 +206,8 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
     (student: Student) => {
       setTallyState((s) => (s ? { ...s, count: s.count + 1 } : s));
       if (eventId) setLastCheckin({ student, at: Date.now(), eventId });
+      // Let live views (the events hub hero, event detail) refresh too.
+      window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
     },
     [eventId]
   );

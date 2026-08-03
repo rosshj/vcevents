@@ -61,6 +61,23 @@ export function EventAttendanceChart({
   );
 }
 
+/** Arrivals over an event's run, bucketed by time — single accent series. */
+export function ArrivalsChart({
+  buckets,
+}: {
+  buckets: { label: string; arrivals: number }[];
+}) {
+  if (buckets.length === 0) return null;
+  return (
+    <BarChart aspectRatio="5 / 2" barGap={0.25} data={buckets} xDataKey="label">
+      <Grid horizontal />
+      <Bar dataKey="arrivals" fill={CHART_ACCENT} lineCap={3} />
+      <BarXAxis />
+      <ChartTooltip />
+    </BarChart>
+  );
+}
+
 /** Headline gauge: total check-ins against the possible maximum. */
 export function TotalCheckinsGauge({
   total,
