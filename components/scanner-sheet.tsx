@@ -870,11 +870,15 @@ function SheetContent({
     schoolSize && tally != null
       ? Math.round((tally / schoolSize) * 100)
       : null;
+  // While typing in Search, the glanceable chrome (last check-in, stats)
+  // yields its space to the results list — otherwise the keyboard plus
+  // that chrome squeeze the list to nothing.
+  const chromeYields = keyboardInset > 0 && mode === "search";
 
   return (
     <div
       className="flex min-h-0 flex-1 flex-col transition-[padding] duration-200"
-      style={{ paddingBottom: keyboardInset }}
+      style={{ paddingBottom: keyboardInset + (chromeYields ? 12 : 0) }}
     >
       {/* Grab handle — the sheet swipes down into the mini-bar. */}
       <div className="flex shrink-0 justify-center pt-[max(env(safe-area-inset-top),0.75rem)]">
@@ -987,7 +991,7 @@ function SheetContent({
       )}
 
       {/* Last check-in — constant height so the panel never jumps. */}
-      <div className="mx-4 mt-3 shrink-0">
+      <div className={cn("mx-4 mt-3 shrink-0", chromeYields && "hidden")}>
         {lastCheckin ? (
           <div className="flex items-center justify-between gap-3 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-3">
             <span className="flex min-w-0 items-center gap-2 font-bold text-emerald-300">
@@ -1009,7 +1013,12 @@ function SheetContent({
       </div>
 
       {/* Session stats */}
-      <div className="grid shrink-0 grid-cols-3 gap-2 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-4 text-center">
+      <div
+        className={cn(
+          "grid shrink-0 grid-cols-3 gap-2 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-4 text-center",
+          chromeYields && "hidden"
+        )}
+      >
         <div>
           <p className="text-3xl font-black tabular-nums">{tally ?? "–"}</p>
           <p className="mt-0.5 text-sm text-white/50">checked in</p>
