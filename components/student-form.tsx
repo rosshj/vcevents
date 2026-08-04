@@ -22,7 +22,10 @@ export function StudentForm({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [grade, setGrade] = useState<string>("7");
-  const [houseId, setHouseId] = useState(houses[0]?.id ?? "");
+  const [houseId, setHouseId] = useState("");
+  // The house list can resolve after mount — derive the default instead
+  // of snapshotting it, so a student is never saved houseless.
+  const effectiveHouseId = houseId || houses[0]?.id || "";
   const [studentNumber, setStudentNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,7 +47,7 @@ export function StudentForm({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           grade: Number(grade),
-          houseId,
+          houseId: effectiveHouseId,
           studentNumber,
         },
         { pending: true }
@@ -93,7 +96,7 @@ export function StudentForm({
       <Field label="House">
         <Segmented
           ariaLabel="House"
-          value={houseId}
+          value={effectiveHouseId}
           onChange={setHouseId}
           columns={2}
           options={houses.map((h) => ({

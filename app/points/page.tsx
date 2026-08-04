@@ -28,14 +28,16 @@ function MyPoints() {
     if (!currentStudent) return;
     let cancelled = false;
     (async () => {
-      const checkins = await repo.listCheckinsByStudent(currentStudent.id);
-      const withEvents = await Promise.all(
-        checkins.map(async (checkin) => ({
-          checkin,
-          event: await repo.getEvent(checkin.eventId),
-        }))
-      );
-      const board = await repo.leaderboard();
+      const [checkins, events, board] = await Promise.all([
+        repo.listCheckinsByStudent(currentStudent.id),
+        repo.listEvents(),
+        repo.leaderboard(),
+      ]);
+      const eventById = new Map(events.map((e) => [e.id, e]));
+      const withEvents = checkins.map((checkin) => ({
+        checkin,
+        event: eventById.get(checkin.eventId) ?? null,
+      }));
       if (cancelled) return;
       // Newest event first (check-in list is already newest-first).
       setRows(withEvents);

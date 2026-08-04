@@ -8,16 +8,9 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import {
-  CalendarDays,
-  Check,
-  Keyboard,
-  QrCode,
-  ScanBarcode,
-  TriangleAlert,
-  UserCheck,
-} from "lucide-react";
+import { CalendarDays, Check, TriangleAlert, UserCheck } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { METHOD_META } from "@/components/method-meta";
 import { repo } from "@/lib/repo";
 import { formatDateTime, formatEventDate } from "@/lib/format";
 import { houseTint } from "@/lib/config";
@@ -26,12 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
 import { StudentForm } from "@/components/student-form";
-
-const METHOD_META = {
-  qr: { label: "QR pass", Icon: QrCode },
-  id_scan: { label: "ID card", Icon: ScanBarcode },
-  manual: { label: "Manual", Icon: Keyboard },
-} as const;
 
 /** Fired after the sheet mutates data so open screens can refetch. */
 export const DATA_CHANGED_EVENT = "vc:data-changed";
@@ -79,15 +66,17 @@ function SheetBody({
     let cancelled = false;
     (async () => {
       const s = await repo.getStudent(studentId);
-      const checkins = s ? await repo.listCheckinsByStudent(s.id) : [];
-      const withEvents = await Promise.all(
-        checkins.map(async (checkin) => ({
-          checkin,
-          event: await repo.getEvent(checkin.eventId),
-        }))
-      );
+      const [checkins, events] = await Promise.all([
+        s ? repo.listCheckinsByStudent(s.id) : Promise.resolve([]),
+        repo.listEvents(),
+      ]);
+      const eventById = new Map(events.map((e) => [e.id, e]));
+      const withEvents = checkins.map((checkin) => ({
+        checkin,
+        event: eventById.get(checkin.eventId) ?? null,
+      }));
       const active = session.activeEventId
-        ? await repo.getEvent(session.activeEventId)
+        ? eventById.get(session.activeEventId) ?? null
         : null;
       if (cancelled) return;
       setStudent(s);
@@ -288,7 +277,13 @@ export function StudentSheetProvider({
         flush
         content={
           studentId && (
-            <SheetBody studentId={studentId} onClose={() => setOpen(false)} />
+            // Keyed so opening a second student never flashes the
+            // previous student's profile while the fetch resolves.
+            <SheetBody
+              key={studentId}
+              studentId={studentId}
+              onClose={() => setOpen(false)}
+            />
           )
         }
       >

@@ -209,7 +209,7 @@ function TodayHero({
                 <span className="truncate">{leader.name}</span>
               </p>
               <p className="text-xs text-stone-500">
-                leading · {row.houseCounts[leader.id]}
+                leading · {houseCounts[leader.id]}
               </p>
             </>
           ) : (

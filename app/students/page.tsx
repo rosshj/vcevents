@@ -54,20 +54,31 @@ function StudentsScreen() {
     ),
   });
 
+  // Debounced: no point sorting the full roster on every keystroke. The
+  // total only changes when the roster does (version bumps).
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([
-      repo.searchStudents(query, grade ?? undefined),
-      repo.listStudents(),
-    ]).then(([r, all]) => {
-      if (cancelled) return;
-      setResults(r);
-      setTotal(all.length);
+    const run = () => {
+      void repo.searchStudents(query, grade ?? undefined).then((r) => {
+        if (!cancelled) setResults(r);
+      });
+    };
+    const t = setTimeout(run, query.trim() ? 200 : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query, grade, version]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void repo.listStudents().then((all) => {
+      if (!cancelled) setTotal(all.length);
     });
     return () => {
       cancelled = true;
     };
-  }, [query, grade, version]);
+  }, [version]);
 
   // The add-student sheet can add a row while this list is mounted.
   useEffect(() => {

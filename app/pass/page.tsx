@@ -19,7 +19,13 @@ function PassScreen() {
   const [todaysEvent, setTodaysEvent] = useState<SchoolEvent | null>(null);
 
   useEffect(() => {
-    void repo.getTodaysEvent().then(setTodaysEvent);
+    let cancelled = false;
+    void repo.getTodaysEvent().then((e) => {
+      if (!cancelled) setTodaysEvent(e);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Tick: track seconds remaining and roll the window every 60s.

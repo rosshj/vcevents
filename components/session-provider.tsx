@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { repo } from "@/lib/repo";
@@ -77,61 +78,61 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Setters read the latest session from a ref and run side effects
+  // OUTSIDE the state updater — updaters must stay pure (StrictMode
+  // re-invokes them, which double-wrote localStorage before).
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
   const persist = useCallback(async (next: SessionState) => {
     setSessionState(next);
+    sessionRef.current = next;
     await repo.setSession(next);
     setCurrentStudent(next.studentId ? await repo.getStudent(next.studentId) : null);
   }, []);
 
   const setRole = useCallback(
     (role: Role, opts?: { studentId?: string; staffId?: string }) => {
-      setSessionState((prev) => {
-        const next: SessionState = { ...prev, role };
-        if (role === "student") {
-          next.staffId = null;
-          if (opts?.studentId) next.studentId = opts.studentId;
-        } else {
-          const match =
-            opts?.staffId ??
-            prev.staffId ??
-            staff.find((st) => st.role === role)?.id ??
-            null;
-          // Keep the staff identity consistent with the chosen role.
-          const staffUser = staff.find((st) => st.id === match);
-          next.staffId =
-            staffUser && staffUser.role === role
-              ? staffUser.id
-              : staff.find((st) => st.role === role)?.id ?? null;
-        }
-        void persist(next);
-        return next;
-      });
+      const prev = sessionRef.current;
+      const next: SessionState = { ...prev, role };
+      if (role === "student") {
+        next.staffId = null;
+        if (opts?.studentId) next.studentId = opts.studentId;
+      } else {
+        const match =
+          opts?.staffId ??
+          prev.staffId ??
+          staff.find((st) => st.role === role)?.id ??
+          null;
+        // Keep the staff identity consistent with the chosen role.
+        const staffUser = staff.find((st) => st.id === match);
+        next.staffId =
+          staffUser && staffUser.role === role
+            ? staffUser.id
+            : staff.find((st) => st.role === role)?.id ?? null;
+      }
+      void persist(next);
     },
     [staff, persist]
   );
 
   const setStudentId = useCallback(
     (studentId: string) => {
-      setSessionState((prev) => {
-        const next = { ...prev, studentId };
-        void persist(next);
-        return next;
-      });
+      void persist({ ...sessionRef.current, studentId });
     },
     [persist]
   );
 
   const setStaffId = useCallback(
     (staffId: string) => {
-      setSessionState((prev) => {
-        const staffUser = staff.find((st) => st.id === staffId);
-        const next: SessionState = {
-          ...prev,
-          staffId,
-          role: staffUser && isStaff(staffUser.role) ? staffUser.role : prev.role,
-        };
-        void persist(next);
-        return next;
+      const prev = sessionRef.current;
+      const staffUser = staff.find((st) => st.id === staffId);
+      void persist({
+        ...prev,
+        staffId,
+        role: staffUser && isStaff(staffUser.role) ? staffUser.role : prev.role,
       });
     },
     [staff, persist]
@@ -139,11 +140,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveEventId = useCallback(
     (eventId: string | null) => {
-      setSessionState((prev) => {
-        const next = { ...prev, activeEventId: eventId };
-        void persist(next);
-        return next;
-      });
+      void persist({ ...sessionRef.current, activeEventId: eventId });
     },
     [persist]
   );

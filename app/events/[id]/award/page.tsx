@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, Trophy } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import { canAwardPoints } from "@/lib/permissions";
@@ -27,6 +28,14 @@ function AwardScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // The post-save navigation must not fire from an unmounted screen.
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (navTimer.current) clearTimeout(navTimer.current);
+    },
+    []
+  );
   usePageHeader("Award points", `/events/${params.id}`, {
     subtitle: event ? `${event.name} · ${formatEventDate(event.date)}` : undefined,
   });
@@ -93,7 +102,9 @@ function AwardScreen() {
       note
     );
     setSaved(true);
-    setTimeout(() => router.push("/events"), 900);
+    // Same contract as every other write: live views refetch.
+    window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+    navTimer.current = setTimeout(() => router.push("/events"), 900);
   };
 
   if (!event) {
@@ -106,10 +117,8 @@ function AwardScreen() {
 
   return (
     <Screen className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-sm text-stone-500">
-          {event.name} · {formatEventDate(event.date)}
-        </p>
+      {/* Name and date live in the header subtitle now. */}
+      <div className="flex justify-end">
         <Badge variant={event.tier === "major" ? "default" : "secondary"}>
           {event.pointsPool} pt pool
         </Badge>

@@ -64,13 +64,19 @@ export function formatClockShort(ms: number): string {
     .replace(/\s?[ap]\.?m\.?$/i, "");
 }
 
-/** "just now" / "3m ago" / "2h ago", falling back to the clock time. */
-export function relativeTime(iso: string, now: number = Date.now()): string {
-  const s = Math.floor((now - new Date(iso).getTime()) / 1000);
+/** "just now" / "3m ago" / "2h ago", falling back to date + time. */
+export function relativeTime(
+  at: string | number,
+  now: number = Date.now()
+): string {
+  const t = typeof at === "number" ? at : new Date(at).getTime();
+  // Clamp clock skew: a timestamp slightly in the future is "just now".
+  const s = Math.max(0, Math.floor((now - t) / 1000));
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return formatTime(iso);
+  // Older than a day: a bare clock time would mislead — show the date.
+  return formatDateTime(new Date(t).toISOString());
 }
 
 export type EventTiming = "past" | "today" | "future";

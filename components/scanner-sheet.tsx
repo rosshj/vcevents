@@ -33,6 +33,7 @@ import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { GradeFilter, SlidingSegmented } from "@/components/grade-filter";
 import { useThemeColor } from "@/components/use-theme-color";
 import { canOperate } from "@/lib/permissions";
+import { relativeTime } from "@/lib/format";
 import { repo } from "@/lib/repo";
 import { decodePassPayload } from "@/lib/qr";
 import type { SchoolEvent, Student } from "@/lib/types";
@@ -158,12 +159,6 @@ function formatElapsed(ms: number) {
   return h > 0
     ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
     : `${m}:${String(sec).padStart(2, "0")}`;
-}
-
-function relTime(ms: number) {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return "just now";
-  return `${Math.floor(s / 60)}m ago`;
 }
 
 export function ScannerSheet({ showBar }: { showBar: boolean }) {
@@ -872,12 +867,19 @@ function SheetContent({
       video.srcObject = null;
       if (overlayTimer.current) clearTimeout(overlayTimer.current);
     };
-  }, [event, handleCode, cameraAttempt, mode]);
+    // Key on the id, not the object: a background refetch or an event
+    // edit must not tear down and restart the camera mid-line.
+  }, [event.id, handleCode, cameraAttempt, mode]);
 
-  const goSearch = () => {
+  // Mode changes always clear feedback: a success/duplicate overlay left
+  // behind while in Search would greet the return to Scan stale, with no
+  // timer to dismiss it.
+  const changeMode = (m: ScanMode) => {
+    if (overlayTimer.current) clearTimeout(overlayTimer.current);
     setOverlay(null);
-    onModeChange("search");
+    onModeChange(m);
   };
+  const goSearch = () => changeMode("search");
 
   const lastHouse = lastCheckin
     ? houseById(lastCheckin.student.houseId)
@@ -922,7 +924,7 @@ function SheetContent({
           { value: "search", label: "Search" },
         ]}
         value={mode}
-        onChange={onModeChange}
+        onChange={changeMode}
         variant="dark"
         className="mx-4 mb-2.5 shrink-0"
       />
@@ -1018,7 +1020,7 @@ function SheetContent({
               </span>
             </span>
             <span className="shrink-0 text-sm font-semibold text-emerald-300/90">
-              {relTime(now - lastCheckin.at)}
+              {relativeTime(lastCheckin.at, now)}
             </span>
           </div>
         ) : (
@@ -1072,33 +1074,37 @@ function SearchPanel({
     Record<string, "created" | "duplicate">
   >({});
 
-  // Pre-mark rows for students already checked in to this event.
+  // Pre-mark rows for students already checked in to this event. Rebuilt
+  // from scratch so statuses never carry over from a previous event.
   useEffect(() => {
     let cancelled = false;
     void repo.listCheckins(event.id).then((checkins) => {
       if (cancelled) return;
-      setStatuses((prev) => {
-        const next = { ...prev };
-        for (const c of checkins) next[c.studentId] ??= "duplicate";
-        return next;
-      });
+      const next: Record<string, "created" | "duplicate"> = {};
+      for (const c of checkins) next[c.studentId] = "duplicate";
+      setStatuses(next);
     });
     return () => {
       cancelled = true;
     };
   }, [event.id]);
 
+  // Debounced: no point sorting the full roster on every keystroke.
   useEffect(() => {
     let cancelled = false;
-    const search =
-      !query.trim() && grade === null
-        ? Promise.resolve([])
-        : repo.searchStudents(query, grade ?? undefined);
-    void search.then((r) => {
-      if (!cancelled) setResults(r);
-    });
+    const run = () => {
+      const search =
+        !query.trim() && grade === null
+          ? Promise.resolve([])
+          : repo.searchStudents(query, grade ?? undefined);
+      void search.then((r) => {
+        if (!cancelled) setResults(r);
+      });
+    };
+    const t = setTimeout(run, query.trim() ? 200 : 0);
     return () => {
       cancelled = true;
+      clearTimeout(t);
     };
   }, [query, grade]);
 

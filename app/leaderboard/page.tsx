@@ -17,7 +17,13 @@ export default function LeaderboardPage() {
   });
 
   useEffect(() => {
-    void repo.leaderboard().then(setRows);
+    let cancelled = false;
+    void repo.leaderboard().then((r) => {
+      if (!cancelled) setRows(r);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!rows) {

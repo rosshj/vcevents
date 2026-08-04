@@ -4,16 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import NumberFlow from "@number-flow/react";
-import {
-  ChevronRight,
-  Keyboard,
-  Pencil,
-  QrCode,
-  ScanBarcode,
-  Trophy,
-  Undo2,
-} from "lucide-react";
+import { ChevronRight, Pencil, Trophy, Undo2 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
+import { METHOD_META } from "@/components/method-meta";
 import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { useEventSheet } from "@/components/event-sheet";
 import { useScanner } from "@/components/scanner-sheet";
@@ -52,12 +45,6 @@ import {
 import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-
-const METHOD_META = {
-  qr: { label: "QR pass", Icon: QrCode },
-  id_scan: { label: "ID card", Icon: ScanBarcode },
-  manual: { label: "Manual", Icon: Keyboard },
-} as const;
 
 interface CheckinRow {
   checkin: Checkin;
@@ -126,18 +113,31 @@ function EventDetail() {
   });
 
   // Offer this event to the scanner bar ("Ready to scan") while viewing a
-  // live or upcoming event.
+  // live or upcoming event. Keyed on id/date, not the object — refetches
+  // must not churn the prospect (that reset the bar's elapsed clock).
+  const evId = event?.id;
+  const evDate = event?.date;
   useEffect(() => {
-    if (!event || eventTiming(event.date) === "past") return;
-    setProspect(event.id);
+    if (!evId || !evDate || eventTiming(evDate) === "past") return;
+    setProspect(evId);
     return () => setProspect(null);
-  }, [event, setProspect]);
+  }, [evId, evDate, setProspect]);
 
   useEffect(() => {
-    if (!event || eventTiming(event.date) !== "today") return;
+    if (!evDate || eventTiming(evDate) !== "today") return;
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
-  }, [event]);
+  }, [evDate]);
+
+  // Memoized: the live page re-renders on every pace tick.
+  const byHouse = useMemo(
+    () =>
+      houses.map((h) => ({
+        house: h,
+        count: rows?.filter((r) => r.student?.houseId === h.id).length ?? 0,
+      })),
+    [houses, rows]
+  );
 
   // Refetch when the student sheet checks someone in over this screen.
   useEffect(() => {
@@ -159,12 +159,13 @@ function EventDetail() {
         repo.listAwards(e.id),
         repo.listStudents(),
       ]);
-      const withStudents = await Promise.all(
-        checkins.map(async (checkin) => ({
-          checkin,
-          student: await repo.getStudent(checkin.studentId),
-        }))
-      );
+      // Join against the roster we already fetched — one lookup map
+      // instead of a repo call per check-in.
+      const byId = new Map(students.map((s) => [s.id, s]));
+      const withStudents = checkins.map((checkin) => ({
+        checkin,
+        student: byId.get(checkin.studentId) ?? null,
+      }));
       if (cancelled) return;
       setEvent(e);
       setRows(withStudents);
@@ -185,10 +186,6 @@ function EventDetail() {
   }
 
   const timing = eventTiming(event.date);
-  const byHouse = houses.map((h) => ({
-    house: h,
-    count: rows?.filter((r) => r.student?.houseId === h.id).length ?? 0,
-  }));
   const leader = byHouse.reduce(
     (best, b) => (b.count > (best?.count ?? 0) ? b : best),
     null as (typeof byHouse)[number] | null
@@ -197,9 +194,14 @@ function EventDetail() {
   const undo = async (checkinId: string) => {
     await repo.undoCheckin(checkinId);
     setVersion((v) => v + 1);
+    // Same contract as every other write: tell live views (scanner bar
+    // tally, events hub hero) the counts changed.
+    window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
   };
 
-  const checkinsList = (
+  // ---------- Past events read as a recap, not an operating screen ----------
+  if (timing === "past") {
+    const checkinsList = (
     <div>
       <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
         Check-ins
@@ -208,9 +210,7 @@ function EventDetail() {
         <div className="h-32 animate-pulse rounded-2xl bg-stone-200/60" />
       ) : rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-stone-500">
-          {timing === "past"
-            ? "Nobody checked in to this event."
-            : "Nobody's checked in yet — tap Scan to start."}
+          Nobody checked in to this event.
         </p>
       ) : (
         <div className="overflow-hidden rounded-3xl bg-white shadow-soft">
@@ -264,10 +264,8 @@ function EventDetail() {
         </div>
       )}
     </div>
-  );
+    );
 
-  // ---------- Past events read as a recap, not an operating screen ----------
-  if (timing === "past") {
     const total = rows?.length ?? 0;
     const pct = schoolSize > 0 ? Math.round((total / schoolSize) * 100) : null;
     const times = (rows ?? []).map((r) =>

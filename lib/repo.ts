@@ -5,6 +5,7 @@
  * Supabase (and a sync queue) without touching any component.
  */
 import { buildSeedDb, DB_VERSION, type Db } from "./seed";
+import { todayString } from "./format";
 import type {
   Checkin,
   CheckinMethod,
@@ -85,25 +86,22 @@ function uuid(): string {
   return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
-function todayString(): string {
-  const d = new Date();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
-}
-
 class LocalStorageRepo implements Repo {
   private cache: Db | null = null;
 
   private load(): Db {
     if (this.cache) return this.cache;
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Db;
-      if (parsed.version === DB_VERSION) {
-        this.cache = parsed;
-        return parsed;
+    try {
+      const raw = localStorage.getItem(DB_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Db;
+        if (parsed.version === DB_VERSION) {
+          this.cache = parsed;
+          return parsed;
+        }
       }
+    } catch {
+      // Corrupt storage — fall through to a clean reseed.
     }
     const db = buildSeedDb();
     this.cache = db;
@@ -266,11 +264,14 @@ class LocalStorageRepo implements Repo {
     patch: Partial<Omit<SchoolEvent, "id">>
   ): Promise<SchoolEvent> {
     const db = this.load();
-    const event = db.events.find((e) => e.id === id);
-    if (!event) throw new Error(`Event ${id} not found`);
-    Object.assign(event, patch);
+    const idx = db.events.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error(`Event ${id} not found`);
+    // Replace, never mutate — event objects held in React state must not
+    // change identity-silently (value semantics the Supabase swap assumes).
+    const updated: SchoolEvent = { ...db.events[idx], ...patch, id };
+    db.events[idx] = updated;
     this.save(db);
-    return event;
+    return updated;
   }
 
   async listCheckins(eventId: string): Promise<Checkin[]> {
@@ -373,8 +374,12 @@ class LocalStorageRepo implements Repo {
   }
 
   async getSession(): Promise<SessionState | null> {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as SessionState) : null;
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      return raw ? (JSON.parse(raw) as SessionState) : null;
+    } catch {
+      return null; // Corrupt session — start fresh rather than crash.
+    }
   }
 
   async setSession(s: SessionState): Promise<void> {
