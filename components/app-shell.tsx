@@ -100,7 +100,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <PageHeaderContext.Provider value={headerCtx}>
     {/* Dark stage behind the page: visible only while a sheet scales the
-        page back (the depth effect); fully covered at rest. */}
+        page back (the depth effect); fully covered at rest. The nav and
+        scanner bar live OUTSIDE the outlet — a transformed ancestor would
+        re-anchor their fixed positioning to the page instead of the
+        viewport, making them vanish for the duration of the travel. */}
     <div className="bg-stone-950">
     <SheetDepthOutlet>
     <div className="flex min-h-dvh flex-col bg-[var(--background)]">
@@ -158,6 +161,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+    </div>
+    </SheetDepthOutlet>
+    </div>
 
       {!pageHeader?.hideNav && (
       <nav className="pointer-events-none fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),1rem)] z-40 flex justify-center px-4">
@@ -194,9 +200,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <ScannerSheet showBar={showOperatingBar} />
-    </div>
-    </SheetDepthOutlet>
-    </div>
     </PageHeaderContext.Provider>
   );
 }
