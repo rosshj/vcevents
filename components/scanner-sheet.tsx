@@ -58,6 +58,13 @@ import { cn } from "@/lib/utils";
 const BAR_GEOM =
   "left-4 right-4 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.6rem)] mx-auto h-14 max-w-md";
 
+/**
+ * The expanded sheet is a phone-width column: full-bleed on phones, a
+ * centered 480px column on desktop instead of a viewport-wide camera.
+ */
+const SHEET_MAX_W = 480;
+const SHEET_GEOM = "inset-y-0 left-0 right-0 mx-auto w-full max-w-[480px]";
+
 const RESULT_CAP = 60;
 
 type ScanMode = "scan" | "search";
@@ -432,14 +439,20 @@ function ScannerSurface({
   const { expanded: liveExpanded } = useScanner();
 
   const m = metricsRef;
+  const sheetRect = (mm: SurfaceMetrics) => {
+    const width = Math.min(mm.vw, SHEET_MAX_W);
+    return { width, left: (mm.vw - width) / 2 };
+  };
   const top = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
-  const left = useTransform(
-    progress,
-    (p) => (1 - p) * (m.current?.barLeft ?? 0)
-  );
+  const left = useTransform(progress, (p) => {
+    const mm = m.current;
+    if (!mm) return 0;
+    return mm.barLeft + p * (sheetRect(mm).left - mm.barLeft);
+  });
   const width = useTransform(progress, (p) => {
     const mm = m.current;
-    return mm ? mm.barWidth + p * (mm.vw - mm.barWidth) : 0;
+    if (!mm) return 0;
+    return mm.barWidth + p * (sheetRect(mm).width - mm.barWidth);
   });
   const height = useTransform(progress, (p) => {
     const mm = m.current;
@@ -532,7 +545,7 @@ function ScannerSurface({
               className={cn(
                 "pointer-events-auto absolute touch-none shadow-float",
                 expanded
-                  ? "inset-0 rounded-[48px] bg-stone-950"
+                  ? cn(SHEET_GEOM, "rounded-[48px] bg-stone-950")
                   : cn(BAR_GEOM, "rounded-[20px] bg-stone-900")
               )}
             />
@@ -552,7 +565,10 @@ function ScannerSurface({
                 animate={{ opacity: 1, transition: { duration: 0.15 } }}
                 exit={{ opacity: 0, transition: { duration: 0.12 } }}
                 style={{ y: sheetY }}
-                className="pointer-events-auto absolute inset-0 touch-none"
+                className={cn(
+                  "pointer-events-auto absolute touch-none",
+                  SHEET_GEOM
+                )}
               >
                 <motion.div
                   style={{ opacity: sheetContentOpacity }}
