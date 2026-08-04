@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         page back (the depth effect); fully covered at rest. */}
     <div className="bg-stone-950">
     <SheetDepthOutlet>
-    <div className="flex min-h-dvh flex-col bg-[--background]">
+    <div className="flex min-h-dvh flex-col bg-[var(--background)]">
       {/* Sticky frosted header: root tabs show title/subtitle/actions,
           drill-in sub-pages show back + compact title. Screens that never
           register chrome (the pass) stay headerless. */}
