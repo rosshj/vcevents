@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import type { SchoolEvent } from "@/lib/types";
 import { EventForm } from "@/components/event-form";
-import { BottomSheet } from "@/components/ui/sheet";
+import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
 import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 
 interface EventSheetContextValue {
@@ -53,23 +53,30 @@ export function EventSheetProvider({
 
   return (
     <EventSheetContext.Provider value={{ openNewEvent, openEditEvent }}>
-      {children}
+      {/* The page nests through the sheet's Root so the depth outlet in
+          AppShell can read its travel and scale the page back. */}
       <BottomSheet
         presented={open}
         onPresentedChange={setOpen}
+        componentId={BOTTOM_SHEET_IDS.event}
         title={editing ? "Edit event" : "New event"}
+        content={
+          <>
+            <h2 className="mb-4 text-2xl font-bold text-stone-900">
+              {editing ? "Edit event" : "New event"}
+            </h2>
+            <EventForm
+              key={openCount}
+              initial={editing ?? undefined}
+              onSaved={() => {
+                setOpen(false);
+                window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+              }}
+            />
+          </>
+        }
       >
-        <h2 className="mb-4 text-2xl font-bold text-stone-900">
-          {editing ? "Edit event" : "New event"}
-        </h2>
-        <EventForm
-          key={openCount}
-          initial={editing ?? undefined}
-          onSaved={() => {
-            setOpen(false);
-            window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
-          }}
-        />
+        {children}
       </BottomSheet>
     </EventSheetContext.Provider>
   );

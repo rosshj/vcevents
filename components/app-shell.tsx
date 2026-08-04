@@ -20,6 +20,7 @@ import {
   type PageHeader,
 } from "@/components/page-header";
 import { ScannerSheet } from "@/components/scanner-sheet";
+import { SheetDepthOutlet } from "@/components/ui/sheet";
 import { canOperate } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
@@ -98,7 +99,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PageHeaderContext.Provider value={headerCtx}>
-    <div className="flex min-h-dvh flex-col">
+    {/* Dark stage behind the page: visible only while a sheet scales the
+        page back (the depth effect); fully covered at rest. */}
+    <div className="bg-stone-950">
+    <SheetDepthOutlet>
+    <div className="flex min-h-dvh flex-col bg-[--background]">
       {/* Sticky frosted header: root tabs show title/subtitle/actions,
           drill-in sub-pages show back + compact title. Screens that never
           register chrome (the pass) stay headerless. */}
@@ -189,6 +194,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <ScannerSheet showBar={showOperatingBar} />
+    </div>
+    </SheetDepthOutlet>
     </div>
     </PageHeaderContext.Provider>
   );

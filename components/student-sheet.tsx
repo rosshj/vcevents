@@ -24,7 +24,7 @@ import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BottomSheet } from "@/components/ui/sheet";
+import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
 import { StudentForm } from "@/components/student-form";
 
 const METHOD_META = {
@@ -100,7 +100,11 @@ function SheetBody({
   }, [studentId, session.activeEventId, version]);
 
   if (!student) {
-    return <div className="h-48 animate-pulse rounded-3xl bg-stone-200/60" />;
+    return (
+      <div className="px-5 pt-4">
+        <div className="h-48 animate-pulse rounded-3xl bg-stone-200/60" />
+      </div>
+    );
   }
 
   const house = houseById(student.houseId);
@@ -122,34 +126,55 @@ function SheetBody({
     window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
   };
 
+  const initials = `${student.firstName[0] ?? ""}${student.lastName[0] ?? ""}`;
+
   return (
-    <div className="space-y-4">
+    <div>
+      {/* Contact card: full-bleed house-color cover, avatar overlapping,
+          centered identity — the sheet as a profile, not a form. */}
       <div
-        className="overflow-hidden rounded-3xl"
-        style={{ background: houseTint(color, 8) }}
-      >
-        <div className="h-2 w-full" style={{ backgroundColor: color }} />
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-xl font-bold text-stone-900">
-                {student.firstName} {student.lastName}
-              </p>
-              <p className="mt-0.5 text-sm text-stone-600">
-                Grade {student.grade} · #{student.studentNumber}
-              </p>
-            </div>
-            {student.pending && <Badge variant="amber">pending</Badge>}
-          </div>
+        className="h-24 w-full"
+        style={{
+          background: `linear-gradient(160deg, ${color}, color-mix(in srgb, ${color} 72%, black))`,
+        }}
+      />
+      <div className="px-5 text-center">
+        <div
+          className="mx-auto -mt-10 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-soft"
+          aria-hidden
+        >
           <span
-            className="mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold text-white"
+            className="flex h-[68px] w-[68px] items-center justify-center rounded-full text-xl font-black"
+            style={{ background: houseTint(color, 14), color }}
+          >
+            {initials}
+          </span>
+        </div>
+        <p className="mt-3 text-2xl font-black tracking-tight text-stone-900">
+          {student.firstName} {student.lastName}
+        </p>
+        <p className="mt-0.5 text-sm text-stone-500">
+          Grade {student.grade} · #{student.studentNumber}
+        </p>
+        <div className="mt-3 flex items-center justify-center gap-1.5">
+          <span
+            className="inline-block rounded-full px-3.5 py-1.5 text-xs font-bold text-white"
             style={{ backgroundColor: color }}
           >
             {house?.name} House
           </span>
+          {student.pending && <Badge variant="amber">pending</Badge>}
         </div>
+        {history && (
+          <p className="mt-3 text-xs font-semibold text-stone-400">
+            {history.length === 0
+              ? "No check-ins yet this year"
+              : `${history.length} check-in${history.length === 1 ? "" : "s"} this year`}
+          </p>
+        )}
       </div>
 
+      <div className="space-y-4 px-5 pt-4">
       {activeEvent &&
         (checkinResult === "created" ? (
           <div className="flex items-center gap-2 rounded-2xl bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-800">
@@ -212,6 +237,7 @@ function SheetBody({
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -243,32 +269,44 @@ export function StudentSheetProvider({
 
   return (
     <StudentSheetContext.Provider value={{ openStudent, openAddStudent }}>
-      {children}
+      {/* The page nests through each sheet's Root so the depth outlet in
+          AppShell can read their travel and scale the page back. */}
       <BottomSheet
         presented={open}
         onPresentedChange={setOpen}
         title="Student details"
+        componentId={BOTTOM_SHEET_IDS.student}
+        flush
+        content={
+          studentId && (
+            <SheetBody studentId={studentId} onClose={() => setOpen(false)} />
+          )
+        }
       >
-        {studentId && (
-          <SheetBody studentId={studentId} onClose={() => setOpen(false)} />
-        )}
-      </BottomSheet>
-
-      {/* Forms in a sheet: Silk's Scroll keeps the focused input above the
-          on-screen keyboard, which is what vaul couldn't do for us. */}
-      <BottomSheet
-        presented={addOpen}
-        onPresentedChange={setAddOpen}
-        title="Add student"
-      >
-        <h2 className="mb-4 text-2xl font-bold text-stone-900">Add student</h2>
-        <StudentForm
-          key={addCount}
-          onSaved={() => {
-            setAddOpen(false);
-            window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
-          }}
-        />
+        {/* Forms in a sheet: Silk's Scroll keeps the focused input above
+            the on-screen keyboard, which is what vaul couldn't do for us. */}
+        <BottomSheet
+          presented={addOpen}
+          onPresentedChange={setAddOpen}
+          title="Add student"
+          componentId={BOTTOM_SHEET_IDS.addStudent}
+          content={
+            <>
+              <h2 className="mb-4 text-2xl font-bold text-stone-900">
+                Add student
+              </h2>
+              <StudentForm
+                key={addCount}
+                onSaved={() => {
+                  setAddOpen(false);
+                  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+                }}
+              />
+            </>
+          }
+        >
+          {children}
+        </BottomSheet>
       </BottomSheet>
     </StudentSheetContext.Provider>
   );
