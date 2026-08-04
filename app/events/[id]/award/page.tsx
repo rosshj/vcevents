@@ -27,7 +27,9 @@ function AwardScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  usePageHeader("Award points", `/events/${params.id}`);
+  usePageHeader("Award points", `/events/${params.id}`, {
+    subtitle: event ? `${event.name} · ${formatEventDate(event.date)}` : undefined,
+  });
 
   useEffect(() => {
     let cancelled = false;

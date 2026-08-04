@@ -113,21 +113,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {pageHeader && (
         <header className="sticky top-0 z-40 bg-[--background]/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
           {pageHeader.backHref ? (
-            <div className="mx-auto flex h-14 w-full max-w-md items-center gap-1 px-5">
-              <Link
-                href={pageHeader.backHref}
-                aria-label="Back"
-                className="-ml-2.5 rounded-full p-2 text-stone-700 hover:bg-stone-900/8"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </Link>
-              <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold text-stone-900">
+            /* Same anatomy as root pages — utility row (back + icon
+               actions), then the identical big title and subtitle. */
+            <div className="mx-auto w-full max-w-md px-5 pb-3 pt-2">
+              <div className="flex items-center justify-between">
+                <Link
+                  href={pageHeader.backHref}
+                  aria-label="Back"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Link>
+                {pageHeader.actions && (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {pageHeader.actions}
+                  </div>
+                )}
+              </div>
+              <h1 className="mt-3 truncate text-2xl font-black tracking-tight text-stone-900">
                 {pageHeader.title}
               </h1>
-              {pageHeader.actions && (
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {pageHeader.actions}
-                </div>
+              {pageHeader.subtitle && (
+                <p className="mt-0.5 truncate text-sm text-stone-500">
+                  {pageHeader.subtitle}
+                </p>
               )}
             </div>
           ) : (

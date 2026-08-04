@@ -51,8 +51,7 @@ import {
 } from "@/lib/format";
 import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const METHOD_META = {
   qr: { label: "QR pass", Icon: QrCode },
@@ -101,22 +100,30 @@ function EventDetail() {
   const { openEditEvent } = useEventSheet();
   const { setProspect } = useScanner();
 
-  // Edit lives in the sticky header, like actions on root pages.
+  // Edit lives in the sticky header's utility row, icon-only.
   const { role } = session;
   const headerActions = useMemo(
     () =>
       event && canManageEvents(role) ? (
         <button
           onClick={() => openEditEvent(event)}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
+          aria-label="Edit"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200"
         >
           <Pencil className="h-4 w-4" />
-          Edit
         </button>
       ) : undefined,
     [event, role, openEditEvent]
   );
-  usePageHeader(event?.name ?? "Event", "/events", { actions: headerActions });
+  const headerSubtitle = event
+    ? `${formatEventDate(event.date)} · ${event.tier === "major" ? "Major" : "Minor"}${
+        eventTiming(event.date) === "past" ? " · Recap" : ""
+      }`
+    : undefined;
+  usePageHeader(event?.name ?? "Event", "/events", {
+    actions: headerActions,
+    subtitle: headerSubtitle,
+  });
 
   // Offer this event to the scanner bar ("Ready to scan") while viewing a
   // live or upcoming event.
@@ -286,12 +293,6 @@ function EventDetail() {
 
     return (
       <Screen className="space-y-4">
-        <p className="flex items-center gap-1.5 text-sm text-stone-500">
-          {formatEventDate(event.date)}
-          <Badge variant="secondary">Recap</Badge>
-          {event.tier === "major" && <Badge>Major</Badge>}
-        </p>
-
         {leader && leader.count > 0 && (
           <div
             className="flex items-center gap-3 rounded-3xl px-5 py-3.5"
@@ -455,11 +456,6 @@ function EventDetail() {
 
   return (
     <Screen className="space-y-4">
-      <p className="text-sm text-stone-500">
-        {formatEventDate(event.date)} ·{" "}
-        {event.tier === "major" ? "Major" : "Minor"}
-      </p>
-
       {/* Box score — the same treatment as the sheet and the recap. */}
       <div className="grid grid-cols-3 gap-2 py-1 text-center">
         <div>

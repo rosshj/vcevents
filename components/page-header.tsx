@@ -6,7 +6,7 @@ export interface PageHeader {
   title: string;
   /** Set → sub-page variant: back chevron + compact title. */
   backHref?: string;
-  /** Root variant only: line under the title. */
+  /** Line under the title, both variants. */
   subtitle?: string;
   /** Buttons on the right, both variants (memoize at the call site). */
   actions?: React.ReactNode;
@@ -34,16 +34,17 @@ export function usePageChrome(header: PageHeader) {
   }, [set, title, backHref, subtitle, actions, hideNav]);
 }
 
-/** Sub-page variant: back button + title in the sticky bar. */
+/** Sub-page variant: back chip + the same big title/subtitle as roots. */
 export function usePageHeader(
   title: string,
   backHref: string,
-  opts?: { hideNav?: boolean; actions?: React.ReactNode }
+  opts?: { hideNav?: boolean; actions?: React.ReactNode; subtitle?: string }
 ) {
   usePageChrome({
     title,
     backHref,
     hideNav: opts?.hideNav ?? false,
     actions: opts?.actions,
+    subtitle: opts?.subtitle,
   });
 }
