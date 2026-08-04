@@ -130,17 +130,20 @@ function SheetBody({
 
   return (
     <div>
-      {/* Contact card: full-bleed house-color cover, avatar overlapping,
-          centered identity — the sheet as a profile, not a form. */}
+      {/* Contact card: the house-color cover carries the grab handle and
+          the whole identity block — the sheet as a profile, not a form. */}
       <div
-        className="h-24 w-full"
+        className="w-full px-5 pb-7 pt-3 text-center"
         style={{
-          background: `linear-gradient(160deg, ${color}, color-mix(in srgb, ${color} 72%, black))`,
+          background: `linear-gradient(170deg, ${color}, color-mix(in srgb, ${color} 72%, black))`,
         }}
-      />
-      <div className="px-5 text-center">
+      >
+        <span
+          aria-hidden
+          className="mx-auto block h-1.5 w-10 rounded-full bg-white/40"
+        />
         <div
-          className="mx-auto -mt-10 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-soft"
+          className="mx-auto mt-6 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-soft"
           aria-hidden
         >
           <span
@@ -150,29 +153,30 @@ function SheetBody({
             {initials}
           </span>
         </div>
-        <p className="mt-3 text-2xl font-black tracking-tight text-stone-900">
+        <p className="mt-3 text-2xl font-black tracking-tight text-white">
           {student.firstName} {student.lastName}
         </p>
-        <p className="mt-0.5 text-sm text-stone-500">
+        <p className="mt-0.5 text-sm text-white/75">
           Grade {student.grade} · #{student.studentNumber}
         </p>
-        <div className="mt-3 flex items-center justify-center gap-1.5">
+        <div className="mt-3.5 flex items-center justify-center gap-1.5">
           <span
-            className="inline-block rounded-full px-3.5 py-1.5 text-xs font-bold text-white"
-            style={{ backgroundColor: color }}
+            className="inline-block rounded-full bg-white px-3.5 py-1.5 text-xs font-bold"
+            style={{ color }}
           >
             {house?.name} House
           </span>
           {student.pending && <Badge variant="amber">pending</Badge>}
         </div>
-        {history && (
-          <p className="mt-3 text-xs font-semibold text-stone-400">
-            {history.length === 0
-              ? "No check-ins yet this year"
-              : `${history.length} check-in${history.length === 1 ? "" : "s"} this year`}
-          </p>
-        )}
       </div>
+
+      {history && (
+        <p className="px-5 pt-4 text-center text-xs font-semibold text-stone-400">
+          {history.length === 0
+            ? "No check-ins yet this year"
+            : `${history.length} check-in${history.length === 1 ? "" : "s"} this year`}
+        </p>
+      )}
 
       <div className="space-y-4 px-5 pt-4">
       {activeEvent &&
@@ -187,10 +191,15 @@ function SheetBody({
             Already checked in to {activeEvent.name}
           </div>
         ) : (
-          <Button size="lg" className="w-full" onClick={checkInNow}>
-            <UserCheck className="h-5 w-5" />
-            Check in to {activeEvent.name}
-          </Button>
+          <div>
+            <Button size="lg" className="w-full" onClick={checkInNow}>
+              <UserCheck className="h-5 w-5" />
+              Check in
+            </Button>
+            <p className="mt-1.5 truncate text-center text-xs text-stone-400">
+              to {activeEvent.name}
+            </p>
+          </div>
         ))}
 
       <div>
