@@ -10,11 +10,13 @@ import { encodePassPayload } from "@/lib/qr";
 import { ROLE_LABELS } from "@/lib/permissions";
 import type { Role, Student } from "@/lib/types";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Screen } from "@/components/guard";
 import { usePageChrome } from "@/components/page-header";
+import { useFlags } from "@/components/flags-provider";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { houseTint } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 const ROLES: Role[] = [
@@ -190,18 +192,23 @@ export default function DevPage() {
     ready,
     session,
     staff,
+    currentStudent,
+    currentStaff,
+    houseById,
     setRole,
     setStudentId,
     setStaffId,
   } = useSession();
+  const { devTools } = useFlags();
   const [resetting, setResetting] = useState(false);
   usePageChrome({
     title: "Me",
-    subtitle: "Mock auth — production uses Google SSO.",
+    subtitle: devTools
+      ? "Mock auth — production uses Google SSO."
+      : undefined,
   });
 
   const handleReset = useCallback(async () => {
-    if (!window.confirm("Reset all data back to the seeded state?")) return;
     setResetting(true);
     await repo.resetData();
     window.location.href = "/";
@@ -210,9 +217,56 @@ export default function DevPage() {
   if (!ready) return null;
 
   const staffForRole = staff.filter((s) => s.role === session.role);
+  const house = currentStudent ? houseById(currentStudent.houseId) : undefined;
+  const displayName =
+    currentStaff?.name ??
+    (currentStudent
+      ? `${currentStudent.firstName} ${currentStudent.lastName}`
+      : "Not signed in");
+  const accent = house?.color ?? "#292524";
 
   return (
     <Screen className="space-y-4">
+      {/* Identity first — this is a profile screen that happens to carry
+          dev tooling, not the other way round. */}
+      <div
+        className="flex items-center gap-4 rounded-3xl p-5"
+        style={{ background: houseTint(accent, 10) }}
+      >
+        <span
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-black text-white"
+          style={{ backgroundColor: accent }}
+        >
+          {displayName
+            .split(" ")
+            .map((w) => w[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-extrabold text-stone-900">
+            {displayName}
+          </p>
+          <p className="truncate text-sm text-stone-600">
+            {ROLE_LABELS[session.role]}
+            {currentStudent && (
+              <>
+                {" "}· Grade {currentStudent.grade} · {house?.name}
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {!devTools && (
+        <p className="px-1 text-xs text-stone-400">
+          Signing in with Google SSO arrives with the backend; roles will come
+          from the school directory.
+        </p>
+      )}
+
+      {devTools && (
       <Card className="space-y-3 p-4">
         <h2 className="font-bold text-stone-900">Role</h2>
         <div className="grid grid-cols-2 gap-2">
@@ -255,9 +309,11 @@ export default function DevPage() {
           </div>
         )}
       </Card>
+      )}
 
-      <CardSimulator />
+      {devTools && <CardSimulator />}
 
+      {devTools && (
       <Card className="space-y-3 p-4">
         <div className="flex items-start gap-2">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
@@ -269,16 +325,16 @@ export default function DevPage() {
             </p>
           </div>
         </div>
-        <Button
-          variant="destructive"
-          onClick={handleReset}
-          disabled={resetting}
-          className="w-full"
-        >
-          <RefreshCw className={cn("h-4 w-4", resetting && "animate-spin")} />
-          {resetting ? "Resetting…" : "Reset all data"}
-        </Button>
+        <ConfirmButton
+          label={resetting ? "Resetting…" : "Reset all data"}
+          confirmLabel="Tap again to erase everything"
+          icon={
+            <RefreshCw className={cn("h-4 w-4", resetting && "animate-spin")} />
+          }
+          onConfirm={handleReset}
+        />
       </Card>
+      )}
     </Screen>
   );
 }

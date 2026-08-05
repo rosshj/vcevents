@@ -44,7 +44,7 @@ check("pass: QR rendered", true);
 const refreshText = await page.textContent("body");
 check("pass: countdown visible", /refreshes in \d+s/i.test(refreshText));
 check("pass: today's event shown", refreshText.includes("House Games Assembly"));
-check("pass: offline chip", refreshText.includes("Ready for offline"));
+check("pass: offline chip", refreshText.includes("Works without signal"));
 await page.screenshot({ path: SHOTS + "/01-pass.png" });
 
 // ---- Leaderboard
@@ -264,8 +264,14 @@ check("award: check-in breakdown shown", /\d+ in/.test(await page.textContent("b
 await page.screenshot({ path: SHOTS + "/10-award.png" });
 await page.locator('input[type="number"]').first().fill("410");
 await page.click('button:has-text("Save points")');
-await page.waitForURL("**/events", { timeout: 10000 });
-check("award: save navigates back", true);
+// Saving lands on the event's recap (where the points now show) and a
+// toast confirms with an undo.
+await page.waitForURL("**/events/**", { timeout: 10000 });
+check("award: save navigates to the event", true);
+check(
+  "award: save toast confirms",
+  /points awarded for/i.test(await page.textContent("body"))
+);
 
 // Aquinas: 410 (edited BBQ) + 160 (Terry Fox) = 570 total on the leaderboard
 await page.goto(BASE + "/leaderboard", { waitUntil: "networkidle" });
@@ -300,7 +306,7 @@ check(
 );
 await page.fill("#student-first", "Pendy");
 await page.fill("#student-last", "Pendington");
-await page.click('[role="radio"]:has-text("Xavier")');
+await page.click('[role="dialog"] [role="radio"]:has-text("Xavier")');
 await page.fill("#student-number", "999222");
 await page.click('button:has-text("Add student")');
 await page.waitForSelector("#student-first", { state: "detached", timeout: 5000 });

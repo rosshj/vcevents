@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { CalendarDays, WifiOff } from "lucide-react";
+import { CalendarDays, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { Guard } from "@/components/guard";
 import { useThemeColor } from "@/components/use-theme-color";
 import { repo } from "@/lib/repo";
 import { currentWindow, encodePassPayload, msLeftInWindow } from "@/lib/qr";
-import { formatEventDate } from "@/lib/format";
 import type { SchoolEvent } from "@/lib/types";
 
 function PassScreen() {
@@ -130,9 +129,8 @@ function PassScreen() {
           {todaysEvent ? (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{todaysEvent.name}</p>
-              <p className="text-xs opacity-80">
-                Today · {formatEventDate(todaysEvent.date)} · show this code at
-                the door
+              <p className="truncate text-xs opacity-80">
+                Today · Show this code at the door
               </p>
             </div>
           ) : (
@@ -146,8 +144,8 @@ function PassScreen() {
         </div>
 
         <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-white/70">
-          <WifiOff className="h-3.5 w-3.5" />
-          Ready for offline
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Works without signal
         </div>
       </div>
     </div>

@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { repo } from "@/lib/repo";
 import { todayString } from "@/lib/format";
 import type { EventTier, SchoolEvent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, Segmented } from "@/components/ui/field";
+import { DateField } from "@/components/ui/date-field";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { useToast } from "@/components/ui/toast";
+import { notifyDataChanged } from "@/lib/data-events";
 
 const TIER_META: Record<EventTier, { label: string; hint: string; defaultPool: number }> = {
   minor: { label: "Minor", hint: "Regular event", defaultPool: 400 },
@@ -17,10 +21,14 @@ const TIER_META: Record<EventTier, { label: string; hint: string; defaultPool: n
 export function EventForm({
   initial,
   onSaved,
+  onDeleted,
 }: {
   initial?: SchoolEvent;
   onSaved: () => void;
+  /** Only offered when editing. */
+  onDeleted?: () => void;
 }) {
+  const { toast } = useToast();
   const [name, setName] = useState(initial?.name ?? "");
   const [date, setDate] = useState(initial?.date ?? todayString());
   const [tier, setTier] = useState<EventTier>(initial?.tier ?? "minor");
@@ -77,13 +85,7 @@ export function EventForm({
       </Field>
 
       <Field label="Date" htmlFor="event-date">
-        <Input
-          id="event-date"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-12 appearance-none"
-        />
+        <DateField id="event-date" value={date} onChange={setDate} />
       </Field>
 
       <Field label="Tier">
@@ -131,6 +133,28 @@ export function EventForm({
           "Create event"
         )}
       </Button>
+
+      {initial && onDeleted && (
+        <div className="border-t border-stone-100 pt-4">
+          <ConfirmButton
+            label="Delete event"
+            confirmLabel="Tap again to delete"
+            icon={<Trash2 className="h-4 w-4" />}
+            onConfirm={async () => {
+              await repo.deleteEvent(initial.id);
+              notifyDataChanged();
+              toast({
+                message: `Deleted ${initial.name}`,
+                tone: "warning",
+              });
+              onDeleted();
+            }}
+          />
+          <p className="mt-2 text-center text-xs text-stone-400">
+            Removes the event and its check-ins and points.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,10 +7,10 @@ import NumberFlow from "@number-flow/react";
 import { ChevronRight, Pencil, Trophy, Undo2 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { METHOD_META } from "@/components/method-meta";
-import { useStudentSheet, DATA_CHANGED_EVENT } from "@/components/student-sheet";
+import { useStudentSheet } from "@/components/student-sheet";
 import { useEventSheet } from "@/components/event-sheet";
 import { useScanner } from "@/components/scanner-sheet";
-import { Guard, Screen } from "@/components/guard";
+import { Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import {
   ArrivalsChart,
@@ -45,6 +45,7 @@ import {
 import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface CheckinRow {
   checkin: Checkin;
@@ -76,6 +77,9 @@ function EventDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { session, houses, houseById } = useSession();
+  // Students reach this page from their own check-in history: they see
+  // the scoreboard and recap, never the roster-level check-in feed.
+  const isStaff = canViewEvents(session.role);
   const [event, setEvent] = useState<SchoolEvent | null>(null);
   const [rows, setRows] = useState<CheckinRow[] | null>(null);
   const [awarded, setAwarded] = useState(0);
@@ -107,7 +111,7 @@ function EventDetail() {
         eventTiming(event.date) === "past" ? " · Recap" : ""
       }`
     : undefined;
-  usePageHeader(event?.name ?? "Event", "/events", {
+  usePageHeader(event?.name ?? "Event", isStaff ? "/events" : "/points", {
     actions: headerActions,
     subtitle: headerSubtitle,
   });
@@ -118,10 +122,10 @@ function EventDetail() {
   const evId = event?.id;
   const evDate = event?.date;
   useEffect(() => {
-    if (!evId || !evDate || eventTiming(evDate) === "past") return;
+    if (!isStaff || !evId || !evDate || eventTiming(evDate) === "past") return;
     setProspect(evId);
     return () => setProspect(null);
-  }, [evId, evDate, setProspect]);
+  }, [isStaff, evId, evDate, setProspect]);
 
   useEffect(() => {
     if (!evDate || eventTiming(evDate) !== "today") return;
@@ -427,7 +431,7 @@ function EventDetail() {
           </div>
         ) : null}
 
-        {checkinsList}
+        {isStaff && checkinsList}
       </Screen>
     );
   }
@@ -535,6 +539,7 @@ function EventDetail() {
         </Link>
       )}
 
+      {isStaff && (
       <div>
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
           Check-ins{isToday ? " · live" : ""}
@@ -601,14 +606,12 @@ function EventDetail() {
           </div>
         )}
       </div>
+      )}
     </Screen>
   );
 }
 
 export default function EventDetailPage() {
-  return (
-    <Guard allow={canViewEvents}>
-      <EventDetail />
-    </Guard>
-  );
+  // Open to students too — their Points page links here for results.
+  return <EventDetail />;
 }

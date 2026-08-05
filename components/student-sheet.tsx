@@ -19,9 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
 import { StudentForm } from "@/components/student-form";
-
-/** Fired after the sheet mutates data so open screens can refetch. */
-export const DATA_CHANGED_EVENT = "vc:data-changed";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface StudentSheetContextValue {
   openStudent: (studentId: string) => void;

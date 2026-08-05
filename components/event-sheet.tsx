@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { SchoolEvent } from "@/lib/types";
 import { EventForm } from "@/components/event-form";
 import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
-import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface EventSheetContextValue {
   /** Opens the "new event" form in a sheet. */
@@ -38,6 +39,7 @@ export function EventSheetProvider({
   // Remount the form on every open so it never shows the previous run's
   // values or "Saved" state.
   const [openCount, setOpenCount] = useState(0);
+  const router = useRouter();
 
   const openNewEvent = useCallback(() => {
     setEditing(null);
@@ -71,6 +73,11 @@ export function EventSheetProvider({
               onSaved={() => {
                 setOpen(false);
                 window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+              }}
+              onDeleted={() => {
+                setOpen(false);
+                // The detail page for a deleted event redirects itself.
+                router.push("/events");
               }}
             />
           </>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Sparkles, Trophy } from "lucide-react";
+import { CalendarDays, ChevronRight, Sparkles, Trophy } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 interface Row {
   checkin: Checkin;
   event: SchoolEvent | null;
+  /** What this event produced for the student's house. */
+  outcome: { points: number; won: boolean };
 }
 
 function MyPoints() {
@@ -28,15 +30,43 @@ function MyPoints() {
     if (!currentStudent) return;
     let cancelled = false;
     (async () => {
-      const [checkins, events, board] = await Promise.all([
+      const [checkins, events, board, awards, students] = await Promise.all([
         repo.listCheckinsByStudent(currentStudent.id),
         repo.listEvents(),
         repo.leaderboard(),
+        repo.listAwards(),
+        repo.listStudents(),
       ]);
       const eventById = new Map(events.map((e) => [e.id, e]));
+      const houseOf = new Map(students.map((s) => [s.id, s.houseId]));
+      const myHouse = currentStudent.houseId;
+
+      // What each of my events actually produced for my house — the loop
+      // the app kept promising but never closed for students.
+      const outcomes = new Map<string, { points: number; won: boolean }>();
+      await Promise.all(
+        checkins.map(async (c) => {
+          const eventCheckins = await repo.listCheckins(c.eventId);
+          const counts = new Map<string, number>();
+          for (const ec of eventCheckins) {
+            const hid = houseOf.get(ec.studentId);
+            if (hid) counts.set(hid, (counts.get(hid) ?? 0) + 1);
+          }
+          const mine = counts.get(myHouse) ?? 0;
+          const best = Math.max(...counts.values(), 0);
+          outcomes.set(c.eventId, {
+            points: awards
+              .filter((a) => a.eventId === c.eventId && a.houseId === myHouse)
+              .reduce((sum, a) => sum + a.points, 0),
+            won: mine > 0 && mine === best,
+          });
+        })
+      );
+
       const withEvents = checkins.map((checkin) => ({
         checkin,
         event: eventById.get(checkin.eventId) ?? null,
+        outcome: outcomes.get(checkin.eventId) ?? { points: 0, won: false },
       }));
       if (cancelled) return;
       // Newest event first (check-in list is already newest-first).
@@ -113,24 +143,35 @@ function MyPoints() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {rows.map(({ checkin, event }) => (
-              <Card
+            {rows.map(({ checkin, event, outcome }) => (
+              <Link
                 key={checkin.id}
-                className="flex items-center gap-3 p-3.5"
+                href={event ? `/events/${event.id}` : "/points"}
+                className="flex items-center gap-3 rounded-3xl p-3.5 shadow-soft transition-opacity hover:opacity-90"
                 style={{ borderLeft: `4px solid ${color}`, background: houseTint(color, 4) }}
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-stone-900">
                     {event?.name ?? "(event removed)"}
+                    {outcome.won && <span className="ml-1.5">👑</span>}
                   </p>
                   <p className="text-xs text-stone-500">
                     {event ? formatEventDate(event.date) : ""}
+                    {outcome.points > 0 && (
+                      <>
+                        {" "}· {house?.name} earned{" "}
+                        <strong className="font-bold text-stone-700">
+                          {outcome.points.toLocaleString()} pts
+                        </strong>
+                      </>
+                    )}
                   </p>
                 </div>
                 {event?.tier === "major" && (
                   <Badge variant="secondary">Major</Badge>
                 )}
-              </Card>
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+              </Link>
             ))}
           </div>
         )}

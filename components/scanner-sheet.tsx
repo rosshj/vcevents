@@ -27,9 +27,9 @@ import {
   RefreshCw,
   Search,
   TriangleAlert,
+  Undo2,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
-import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { GradeFilter, SlidingSegmented } from "@/components/grade-filter";
 import { useThemeColor } from "@/components/use-theme-color";
 import { canOperate } from "@/lib/permissions";
@@ -39,7 +39,9 @@ import { decodePassPayload } from "@/lib/qr";
 import type { SchoolEvent, Student } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 /**
  * The check-in sheet. Expanded, it handles every way of checking someone
@@ -124,6 +126,8 @@ interface LastCheckin {
   student: Student;
   at: number;
   eventId: string;
+  /** So the pill can undo exactly this check-in. */
+  checkinId: string;
 }
 
 /** Short feedback tones so operators don't have to look at the screen. */
@@ -165,6 +169,7 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
   const { expanded, mode, setMode, expand, collapse, prospectEventId } =
     useScanner();
   const { ready, session, setActiveEventId } = useSession();
+  const { toast } = useToast();
   // The shown event: the one being operated, else a detail page's
   // prospect. `operating` and `startedAt` travel with it so the elapsed
   // clock starts when scanning does, not when the page was opened.
@@ -235,14 +240,31 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
 
   const eventId = event?.id ?? null;
   const onCheckin = useCallback(
-    (student: Student) => {
+    (student: Student, checkinId: string) => {
       setTallyState((s) => (s ? { ...s, count: s.count + 1 } : s));
-      if (eventId) setLastCheckin({ student, at: Date.now(), eventId });
+      if (eventId)
+        setLastCheckin({ student, at: Date.now(), eventId, checkinId });
       // Let live views (the events hub hero, event detail) refresh too.
       window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
     },
     [eventId]
   );
+
+  // Undo the most recent check-in straight from the sheet — no need to
+  // minimize and hunt for the row in the event's feed.
+  const undoLast = useCallback(async () => {
+    if (!last) return;
+    await repo.undoCheckin(last.checkinId);
+    setTallyState((s) =>
+      s ? { ...s, count: Math.max(0, s.count - 1) } : s
+    );
+    setLastCheckin(null);
+    window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+    toast({
+      message: `Undid check-in for ${last.student.firstName} ${last.student.lastName}`,
+      tone: "warning",
+    });
+  }, [last, toast]);
 
   const stop = () => {
     setActiveEventId(null);
@@ -273,6 +295,7 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
             startedAt={activeOp?.startedAt ?? null}
             lastCheckin={last}
             onCheckin={onCheckin}
+            onUndoLast={undoLast}
             onExpand={openSheet}
             onCollapse={collapse}
             onStop={stop}
@@ -314,6 +337,7 @@ function ScannerSurface({
   startedAt,
   lastCheckin,
   onCheckin,
+  onUndoLast,
   onExpand,
   onCollapse,
   onStop,
@@ -327,7 +351,8 @@ function ScannerSurface({
   schoolSize: number | null;
   startedAt: number | null;
   lastCheckin: LastCheckin | null;
-  onCheckin: (student: Student) => void;
+  onCheckin: (student: Student, checkinId: string) => void;
+  onUndoLast: () => void;
   onExpand: () => void;
   onCollapse: () => void;
   onStop: () => void;
@@ -578,6 +603,7 @@ function ScannerSurface({
                     startedAt={startedAt}
                     lastCheckin={lastCheckin}
                     onCheckin={onCheckin}
+                    onUndoLast={onUndoLast}
                     onCollapse={onCollapse}
                   />
                 </motion.div>
@@ -652,6 +678,7 @@ function SheetContent({
   startedAt,
   lastCheckin,
   onCheckin,
+  onUndoLast,
   onCollapse,
 }: {
   event: SchoolEvent;
@@ -661,7 +688,8 @@ function SheetContent({
   schoolSize: number | null;
   startedAt: number | null;
   lastCheckin: LastCheckin | null;
-  onCheckin: (student: Student) => void;
+  onCheckin: (student: Student, checkinId: string) => void;
+  onUndoLast?: () => void;
   onCollapse: () => void;
 }) {
   const { session, houseById } = useSession();
@@ -766,7 +794,7 @@ function SheetContent({
         operatorId: operatorRef.current ?? "unknown",
       });
       if (result.status === "created") {
-        onCheckin(student);
+        onCheckin(student, result.checkin.id);
         showOverlay({ kind: "success", student });
       } else {
         showOverlay({ kind: "duplicate", student });
@@ -1019,8 +1047,20 @@ function SheetContent({
                 {lastHouse && <> · {lastHouse.name}</>}
               </span>
             </span>
-            <span className="shrink-0 text-sm font-semibold text-emerald-300/90">
-              {relativeTime(lastCheckin.at, now)}
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-sm font-semibold text-emerald-300/90">
+                {relativeTime(lastCheckin.at, now)}
+              </span>
+              {onUndoLast && (
+                <button
+                  onClick={onUndoLast}
+                  aria-label={`Undo check-in for ${lastCheckin.student.firstName} ${lastCheckin.student.lastName}`}
+                  className="flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-bold text-emerald-200 hover:bg-emerald-400/25"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Undo
+                </button>
+              )}
             </span>
           </div>
         ) : (
@@ -1064,7 +1104,7 @@ function SearchPanel({
   onCheckin,
 }: {
   event: SchoolEvent;
-  onCheckin: (student: Student) => void;
+  onCheckin: (student: Student, checkinId: string) => void;
 }) {
   const { session, houseById } = useSession();
   const [query, setQuery] = useState("");
@@ -1119,7 +1159,7 @@ function SearchPanel({
     });
     if (result.status === "created") {
       beep("success");
-      onCheckin(student);
+      onCheckin(student, result.checkin.id);
     } else {
       beep("duplicate");
     }

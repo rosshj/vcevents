@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useEventSheet } from "@/components/event-sheet";
-import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { usePageChrome } from "@/components/page-header";
 import { Guard, Screen } from "@/components/guard";
 import { chartHouseOrder, HouseSplitBar } from "@/components/report-charts";
@@ -31,6 +30,7 @@ import type { House, SchoolEvent } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface EventRow {
   event: SchoolEvent;

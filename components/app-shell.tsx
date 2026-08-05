@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -89,6 +89,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const nav = navFor(session.role);
 
+  // Publish the sticky header's height so screens can pin their own
+  // sticky furniture (the students filter bar) directly beneath it
+  // instead of guessing an offset that drifts with the header variant.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    const root = document.documentElement;
+    if (!el) {
+      root.style.setProperty("--app-header-h", "0px");
+      return;
+    }
+    const measure = () =>
+      root.style.setProperty("--app-header-h", `${el.offsetHeight}px`);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pageHeader]);
+
   // The scanner sheet's mini-bar docks above the tab bar on root tabs and
   // on event detail screens (where it's the scan control); other drill-in
   // sub-pages keep a clean stage.
@@ -111,7 +130,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           drill-in sub-pages show back + compact title. Screens that never
           register chrome (the pass) stay headerless. */}
       {pageHeader && (
-        <header className="sticky top-0 z-40 bg-[--background]/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+        <header
+          ref={headerRef}
+          className="sticky top-0 z-40 bg-[var(--background)]/70 pt-[env(safe-area-inset-top)] backdrop-blur-xl"
+        >
           {pageHeader.backHref ? (
             /* Same anatomy as root pages — utility row (back + icon
                actions), then the identical big title and subtitle. */

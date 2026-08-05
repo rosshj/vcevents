@@ -29,6 +29,11 @@ export interface Repo {
   resetData(): Promise<void>;
 
   listHouses(): Promise<House[]>;
+  getHouse(id: string): Promise<House | null>;
+  createHouse(h: Omit<House, "id">): Promise<House>;
+  updateHouse(id: string, patch: Partial<Omit<House, "id">>): Promise<House>;
+  /** Refuses while students or awards still reference the house. */
+  deleteHouse(id: string): Promise<void>;
   listStaff(): Promise<StaffUser[]>;
 
   listStudents(): Promise<Student[]>;
@@ -49,6 +54,8 @@ export interface Repo {
     id: string,
     patch: Partial<Omit<SchoolEvent, "id">>
   ): Promise<SchoolEvent>;
+  /** Removes the event along with its check-ins and awards. */
+  deleteEvent(id: string): Promise<void>;
 
   listCheckins(eventId: string): Promise<Checkin[]>;
   listCheckinsByStudent(studentId: string): Promise<Checkin[]>;
@@ -127,6 +134,62 @@ class LocalStorageRepo implements Repo {
 
   async listHouses(): Promise<House[]> {
     return this.load().houses;
+  }
+
+  async getHouse(id: string): Promise<House | null> {
+    return this.load().houses.find((h) => h.id === id) ?? null;
+  }
+
+  async createHouse(h: Omit<House, "id">): Promise<House> {
+    const db = this.load();
+    const name = h.name.trim();
+    if (!name) throw new Error("House name is required");
+    if (db.houses.some((x) => x.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error(`A house called ${name} already exists`);
+    }
+    const house: House = { ...h, name, id: `house_${uuid()}` };
+    db.houses.push(house);
+    this.save(db);
+    return house;
+  }
+
+  async updateHouse(
+    id: string,
+    patch: Partial<Omit<House, "id">>
+  ): Promise<House> {
+    const db = this.load();
+    const idx = db.houses.findIndex((h) => h.id === id);
+    if (idx === -1) throw new Error(`House ${id} not found`);
+    const name = patch.name?.trim();
+    if (name !== undefined) {
+      if (!name) throw new Error("House name is required");
+      if (
+        db.houses.some(
+          (x) => x.id !== id && x.name.toLowerCase() === name.toLowerCase()
+        )
+      ) {
+        throw new Error(`A house called ${name} already exists`);
+      }
+    }
+    const updated: House = { ...db.houses[idx], ...patch, ...(name ? { name } : {}), id };
+    db.houses[idx] = updated;
+    this.save(db);
+    return updated;
+  }
+
+  async deleteHouse(id: string): Promise<void> {
+    const db = this.load();
+    const students = db.students.filter((s) => s.houseId === id).length;
+    if (students > 0) {
+      throw new Error(
+        `${students} student${students === 1 ? " is" : "s are"} still in this house — move them first`
+      );
+    }
+    if (db.awards.some((a) => a.houseId === id)) {
+      throw new Error("This house has points awarded to it and can't be deleted");
+    }
+    db.houses = db.houses.filter((h) => h.id !== id);
+    this.save(db);
   }
 
   async listStaff(): Promise<StaffUser[]> {
@@ -272,6 +335,15 @@ class LocalStorageRepo implements Repo {
     db.events[idx] = updated;
     this.save(db);
     return updated;
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    const db = this.load();
+    db.events = db.events.filter((e) => e.id !== id);
+    // An event's check-ins and awards have no meaning without it.
+    db.checkins = db.checkins.filter((c) => c.eventId !== id);
+    db.awards = db.awards.filter((a) => a.eventId !== id);
+    this.save(db);
   }
 
   async listCheckins(eventId: string): Promise<Checkin[]> {

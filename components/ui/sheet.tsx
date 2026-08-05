@@ -35,6 +35,7 @@ export const BOTTOM_SHEET_IDS = {
   student: createComponentId(),
   addStudent: createComponentId(),
   event: createComponentId(),
+  house: createComponentId(),
 } as const;
 
 type BottomSheetId = (typeof BOTTOM_SHEET_IDS)[keyof typeof BOTTOM_SHEET_IDS];
@@ -71,7 +72,13 @@ export function SheetDepthOutlet({ children }: { children: React.ReactNode }) {
           travelAnimation={DEPTH_ANIMATION}
           className="origin-top"
         >
-          {children}
+          <Sheet.Outlet
+            forComponent={BOTTOM_SHEET_IDS.house}
+            travelAnimation={DEPTH_ANIMATION}
+            className="origin-top"
+          >
+            {children}
+          </Sheet.Outlet>
         </Sheet.Outlet>
       </Sheet.Outlet>
     </Sheet.Outlet>

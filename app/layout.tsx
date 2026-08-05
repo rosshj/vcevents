@@ -5,9 +5,13 @@ import { SessionProvider } from "@/components/session-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { StudentSheetProvider } from "@/components/student-sheet";
 import { EventSheetProvider } from "@/components/event-sheet";
+import { HouseSheetProvider } from "@/components/house-sheet";
 import { ScannerProvider } from "@/components/scanner-sheet";
+import { FlagsProvider } from "@/components/flags-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { AppShell } from "@/components/app-shell";
 import { APP_NAME, SCHOOL_NAME } from "@/lib/config";
+import { evaluateFlags } from "@/lib/flags";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,28 +44,37 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Flags are decided on the server so client screens read them with no
+  // waterfall and no flash of the wrong UI.
+  const flags = await evaluateFlags();
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
-        <SessionProvider>
-          <MotionProvider>
-            <StudentSheetProvider>
-              <EventSheetProvider>
-                <ScannerProvider>
-                  <AppShell>{children}</AppShell>
-                </ScannerProvider>
-              </EventSheetProvider>
-            </StudentSheetProvider>
-          </MotionProvider>
-        </SessionProvider>
+        <FlagsProvider flags={flags}>
+          <SessionProvider>
+            <MotionProvider>
+              <ToastProvider>
+                <StudentSheetProvider>
+                  <EventSheetProvider>
+                    <HouseSheetProvider>
+                      <ScannerProvider>
+                        <AppShell>{children}</AppShell>
+                      </ScannerProvider>
+                    </HouseSheetProvider>
+                  </EventSheetProvider>
+                </StudentSheetProvider>
+              </ToastProvider>
+            </MotionProvider>
+          </SessionProvider>
+        </FlagsProvider>
       </body>
     </html>
   );

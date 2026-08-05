@@ -36,3 +36,6 @@ export const canImportCsv = (r: Role) => r === "house_director";
 
 /** Uninvolved report. Director only. */
 export const canViewReports = (r: Role) => r === "house_director";
+
+/** Create, rename, recolor, or delete houses. Director only. */
+export const canManageHouses = (r: Role) => r === "house_director";

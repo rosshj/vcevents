@@ -1,20 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Crown } from "lucide-react";
+import { ChevronRight, Crown, Plus } from "lucide-react";
 import { usePageChrome } from "@/components/page-header";
+import { useSession } from "@/components/session-provider";
+import { useHouseSheet } from "@/components/house-sheet";
 import { repo } from "@/lib/repo";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
+import { canManageHouses } from "@/lib/permissions";
 import type { LeaderboardRow } from "@/lib/types";
 import { Screen } from "@/components/guard";
+import { buttonVariants } from "@/components/ui/button";
 import { houseTint } from "@/lib/config";
 
 export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
+  const [version, setVersion] = useState(0);
+  const { session } = useSession();
+  const { openNewHouse } = useHouseSheet();
+  const { role } = session;
   usePageChrome({
     title: "House Standings",
     subtitle: "Points awarded so far this year",
+    actions: useMemo(
+      () =>
+        canManageHouses(role) ? (
+          <button
+            onClick={openNewHouse}
+            className={buttonVariants({ size: "sm" })}
+          >
+            <Plus className="h-4 w-4" />
+            House
+          </button>
+        ) : undefined,
+      [role, openNewHouse]
+    ),
   });
+
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, bump);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +53,7 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [version]);
 
   if (!rows) {
     return (
@@ -62,7 +91,10 @@ export default function LeaderboardPage() {
               background: houseTint(row.house.color, i === 0 ? 16 : 9),
             }}
           >
-            <div className="flex items-center gap-4 p-5">
+            <Link
+              href={`/houses/${row.house.id}`}
+              className="flex items-center gap-4 p-5 transition-opacity hover:opacity-90"
+            >
               <div
                 className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl text-lg font-black text-white shadow-soft"
                 style={{ backgroundColor: row.house.color }}
@@ -108,13 +140,18 @@ export default function LeaderboardPage() {
                   points
                 </p>
               </div>
-            </div>
+              <ChevronRight
+                className="h-4 w-4 shrink-0"
+                style={{ color: row.house.color }}
+              />
+            </Link>
           </motion.div>
         ))}
       </motion.div>
 
       <p className="text-xs text-stone-400">
-        Points are awarded by House Directors after each event.
+        Tap a house for its event history. Points are awarded by House
+        Directors after each event.
       </p>
     </Screen>
   );

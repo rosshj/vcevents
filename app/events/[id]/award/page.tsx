@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, Trophy } from "lucide-react";
 import { useSession } from "@/components/session-provider";
-import { DATA_CHANGED_EVENT } from "@/components/student-sheet";
 import { Guard, Screen } from "@/components/guard";
 import { usePageHeader } from "@/components/page-header";
 import { canAwardPoints } from "@/lib/permissions";
@@ -17,11 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
+import { useToast } from "@/components/ui/toast";
 
 function AwardScreen() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { session, houses } = useSession();
+  const { toast } = useToast();
   const [event, setEvent] = useState<SchoolEvent | null>(null);
   const [checkinsByHouse, setCheckinsByHouse] = useState<Record<string, number>>({});
   const [points, setPoints] = useState<Record<string, string>>({});
@@ -95,6 +97,8 @@ function AwardScreen() {
       const n = Number(points[h.id] ?? 0);
       return { houseId: h.id, points: Number.isFinite(n) && n > 0 ? Math.round(n) : 0 };
     });
+    // Snapshot what was there before, so the toast can offer an undo.
+    const previous = await repo.listAwards(event.id);
     await repo.awardPoints(
       event.id,
       entries,
@@ -104,7 +108,27 @@ function AwardScreen() {
     setSaved(true);
     // Same contract as every other write: live views refetch.
     window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
-    navTimer.current = setTimeout(() => router.push("/events"), 900);
+
+    const total = entries.reduce((sum, e) => sum + e.points, 0);
+    const eventId = event.id;
+    const staffId = session.staffId ?? "unknown";
+    toast({
+      message: `${total.toLocaleString()} points awarded for ${event.name}`,
+      tone: "success",
+      action: {
+        label: "Undo",
+        onPress: async () => {
+          await repo.awardPoints(
+            eventId,
+            previous.map((a) => ({ houseId: a.houseId, points: a.points })),
+            staffId,
+            previous[0]?.note ?? "Reverted"
+          );
+          window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+        },
+      },
+    });
+    navTimer.current = setTimeout(() => router.push(`/events/${eventId}`), 500);
   };
 
   if (!event) {

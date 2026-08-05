@@ -18,6 +18,7 @@ import type {
   Student,
 } from "@/lib/types";
 import { isStaff } from "@/lib/permissions";
+import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface SessionContextValue {
   ready: boolean;
@@ -85,6 +86,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  // Houses are edited at runtime now (Houses tab CRUD), so the cached
+  // list has to follow the same broadcast contract as every other write.
+  useEffect(() => {
+    const refresh = () => {
+      void repo.listHouses().then(setHouses);
+    };
+    window.addEventListener(DATA_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, refresh);
+  }, []);
 
   const persist = useCallback(async (next: SessionState) => {
     setSessionState(next);
