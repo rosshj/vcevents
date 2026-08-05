@@ -476,9 +476,11 @@ function EventDetail() {
         {isToday ? (
           <div>
             <p className="text-2xl font-black tabular-nums text-stone-900">
-              +{recent}
+              {total > 0 ? `+${recent}` : "—"}
             </p>
-            <p className="text-xs text-stone-500">last 15 min</p>
+            <p className="text-xs text-stone-500">
+              {total > 0 ? "last 15 min" : "doors not open"}
+            </p>
           </div>
         ) : (
           <div>

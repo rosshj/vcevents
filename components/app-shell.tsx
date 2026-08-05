@@ -89,6 +89,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const nav = navFor(session.role);
 
+  // Long lists (the check-in feed, the 600-row directory) shouldn't give
+  // ~110px of chrome to a title you've already read. Past a threshold the
+  // header condenses to a compact bar; it returns as soon as you scroll
+  // back toward the top.
+  const [condensed, setCondensed] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      setCondensed((prev) => (prev ? y > 48 : y > 96));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [pathname]);
+
   // Publish the sticky header's height so screens can pin their own
   // sticky furniture (the students filter bar) directly beneath it
   // instead of guessing an offset that drifts with the header variant.
@@ -137,37 +152,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {pageHeader.backHref ? (
             /* Same anatomy as root pages — utility row (back + icon
                actions), then the identical big title and subtitle. */
-            <div className="mx-auto w-full max-w-md px-5 pb-3 pt-2">
-              <div className="flex items-center justify-between">
+            <div
+              className={cn(
+                "mx-auto w-full max-w-md px-5 transition-[padding] duration-200",
+                condensed ? "pb-2 pt-2" : "pb-3 pt-2"
+              )}
+            >
+              <div className="flex items-center gap-3">
                 <Link
                   href={pageHeader.backHref}
                   aria-label="Back"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </Link>
+                {/* Condensed, the title joins the utility row so the whole
+                    header is one line — the iOS large-title pattern. */}
+                {condensed && (
+                  <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold text-stone-900">
+                    {pageHeader.title}
+                  </h1>
+                )}
+                {!condensed && <span className="flex-1" />}
                 {pageHeader.actions && (
                   <div className="flex shrink-0 items-center gap-1.5">
                     {pageHeader.actions}
                   </div>
                 )}
               </div>
-              <h1 className="mt-3 truncate text-2xl font-black tracking-tight text-stone-900">
-                {pageHeader.title}
-              </h1>
-              {pageHeader.subtitle && (
-                <p className="mt-0.5 truncate text-sm text-stone-500">
-                  {pageHeader.subtitle}
-                </p>
+              {!condensed && (
+                <>
+                  <h1 className="mt-3 truncate text-2xl font-black tracking-tight text-stone-900">
+                    {pageHeader.title}
+                  </h1>
+                  {pageHeader.subtitle && (
+                    <p className="mt-0.5 truncate text-sm text-stone-500">
+                      {pageHeader.subtitle}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ) : (
-            <div className="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-5 pb-3 pt-4">
+            <div
+              className={cn(
+                "mx-auto flex w-full max-w-md items-center justify-between gap-3 px-5 transition-[padding] duration-200",
+                condensed ? "pb-2 pt-2" : "pb-3 pt-4"
+              )}
+            >
               <div className="min-w-0">
-                <h1 className="truncate text-2xl font-black tracking-tight text-stone-900">
+                <h1
+                  className={cn(
+                    "truncate font-black tracking-tight text-stone-900 transition-[font-size] duration-200",
+                    condensed ? "text-[17px]" : "text-2xl"
+                  )}
+                >
                   {pageHeader.title}
                 </h1>
-                {pageHeader.subtitle && (
+                {pageHeader.subtitle && !condensed && (
                   <p className="mt-0.5 truncate text-sm text-stone-500">
                     {pageHeader.subtitle}
                   </p>

@@ -542,6 +542,7 @@ function ScannerSurface({
           void animate(progress, target ? 1 : 0, SPRING);
         }
       }}
+      data-dark-surface
       className="pointer-events-none fixed inset-0 z-50 text-white"
     >
       {covered && liveExpanded && <ScannerThemeColor />}

@@ -12,13 +12,23 @@ import { GRADES } from "@/lib/config";
 import type { Student } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { StudentListRow } from "@/components/student-row";
+import { ShareListButton } from "@/components/share-list-button";
 
 function UninvolvedScreen() {
   const { houseById } = useSession();
   const { openStudent } = useStudentSheet();
   const [students, setStudents] = useState<Student[] | null>(null);
   const [totalStudents, setTotalStudents] = useState(0);
-  usePageHeader("Uninvolved students", "/reports");
+  usePageHeader("Uninvolved students", "/reports", {
+    actions: students ? (
+      <ShareListButton
+        title="Uninvolved students"
+        note="No check-ins to any event this year."
+        students={students}
+        houseById={houseById}
+      />
+    ) : undefined,
+  });
 
   useEffect(() => {
     let cancelled = false;

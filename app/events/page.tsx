@@ -154,6 +154,9 @@ function TodayHero({
 }) {
   const { event, checkins, houseCounts } = row;
   const pct = pctOfSchool(checkins, schoolSize);
+  // "0 · 0% · –" before the first scan reads like a failed event; the
+  // card only claims to be live once someone has actually checked in.
+  const started = checkins > 0;
   const leader = houses.reduce(
     (best, h) =>
       (houseCounts[h.id] ?? 0) > (best ? houseCounts[best.id] ?? 0 : 0)
@@ -169,11 +172,23 @@ function TodayHero({
     >
       <div className="flex items-center gap-2">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          {started && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          )}
+          <span
+            className={cn(
+              "relative inline-flex h-2 w-2 rounded-full",
+              started ? "bg-emerald-500" : "bg-stone-400"
+            )}
+          />
         </span>
-        <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-emerald-700">
-          Happening now
+        <span
+          className={cn(
+            "text-[10.5px] font-extrabold uppercase tracking-wider",
+            started ? "text-emerald-700" : "text-stone-500"
+          )}
+        >
+          {started ? "Happening now" : "Today · doors not open yet"}
         </span>
         <span className="ml-auto text-xs font-semibold text-stone-500">
           {formatEventDate(event.date)}
@@ -214,10 +229,10 @@ function TodayHero({
             </>
           ) : (
             <>
-              <p className="text-[26px] font-black leading-tight text-stone-300">
-                –
+              <p className="text-[17px] font-black leading-[30px] text-stone-400">
+                Ready
               </p>
-              <p className="text-xs text-stone-500">no check-ins yet</p>
+              <p className="text-xs text-stone-500">tap to start scanning</p>
             </>
           )}
         </div>

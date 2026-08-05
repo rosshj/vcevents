@@ -12,6 +12,7 @@ import { GRADES } from "@/lib/config";
 import type { Student } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { StudentListRow } from "@/components/student-row";
+import { ShareListButton } from "@/components/share-list-button";
 
 interface Row {
   student: Student;
@@ -22,7 +23,17 @@ function OneAndDoneScreen() {
   const { houseById } = useSession();
   const { openStudent } = useStudentSheet();
   const [rows, setRows] = useState<Row[] | null>(null);
-  usePageHeader("One-and-done", "/reports");
+  const shareable = useMemo(() => (rows ?? []).map((r) => r.student), [rows]);
+  usePageHeader("One-and-done", "/reports", {
+    actions: shareable.length > 0 ? (
+      <ShareListButton
+        title="One-and-done students"
+        note="Came to exactly one event and haven't been back."
+        students={shareable}
+        houseById={houseById}
+      />
+    ) : undefined,
+  });
 
   useEffect(() => {
     let cancelled = false;

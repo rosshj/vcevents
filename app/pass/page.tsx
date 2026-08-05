@@ -71,6 +71,7 @@ function PassScreen() {
 
   return (
     <div
+      data-dark-surface
       className="-mb-32 -mt-[calc(env(safe-area-inset-top)+0.5rem)] flex min-h-dvh flex-col items-center px-4 pb-36 pt-[calc(env(safe-area-inset-top)+1.75rem)]"
       // Flat, not a gradient: the canvas (html/body) is painted this same
       // color, so iOS viewport mis-measures at standalone launch can't

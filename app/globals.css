@@ -74,6 +74,22 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Keyboard focus in the app's own language rather than the browser's
+   default outline. :focus-visible only, so touch and mouse taps stay
+   clean while tab navigation (and desktop use generally) is legible. */
+:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+/* On dark surfaces — the check-in sheet, the scanner bar, the pass —
+   the ring has to be light to be seen at all. */
+.dark-surface :focus-visible,
+[data-dark-surface] :focus-visible {
+  outline-color: #ffffff;
+}
+
 @keyframes pass-refresh {
   0% {
     opacity: 0.15;
