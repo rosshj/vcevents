@@ -473,6 +473,9 @@ function ScannerDrawer({
                         ...props.style,
                         ...PROGRESS_VARS,
                         "--bar-offset": `${bar.top}px`,
+                        // The popup's own height, for the sheet body's
+                        // fixed-size box inside the growing surface.
+                        "--popup-h": `${bar.top + bar.snap}px`,
                       } as React.CSSProperties}
                       className={cn(
                         "pointer-events-none relative h-full w-full max-w-[480px] text-white outline-none",
@@ -489,11 +492,13 @@ function ScannerDrawer({
 
                       {/* The dark surface: pill at --p 0, sheet at 1. Corners
                           grow with it (native sheets keep device-radius
-                          corners at full screen) rather than flattening. */}
+                          corners at full screen) rather than flattening.
+                          Both content layers live inside it, so whatever
+                          size it has mid-transition is what clips them — no
+                          second timeline to keep in step. */}
                       <div
-                        onClick={expanded ? undefined : onExpand}
                         className={cn(
-                          "pointer-events-auto absolute top-0 shadow-float touch-none",
+                          "pointer-events-auto absolute top-0 overflow-hidden shadow-float touch-none",
                           `transition-[left,right,height,border-radius,background-color] ease-[${EASE}]`,
                           travel
                         )}
@@ -505,30 +510,35 @@ function ScannerDrawer({
                           backgroundColor:
                             "color-mix(in srgb, #0c0a09 calc(var(--p) * 100%), #1c1917)",
                         }}
-                      />
-
+                      >
                       {event && (
                         <>
                           {/* Sheet body: fades in over the last stretch of
-                              the rise, lingers one fade after collapse. */}
+                              the rise, lingers one fade after collapse. It's
+                              laid out at the popup's full size throughout
+                              (offset back by the pill's inset), so nothing
+                              reflows as the surface grows around it. */}
                           {sheetMounted && (
                             <div
                               className={cn(
-                                "pointer-events-auto absolute inset-0 flex flex-col touch-none",
+                                "absolute top-0 flex flex-col touch-none",
                                 // Mounts at 0 (@starting-style) so the first
                                 // paint transitions in rather than appearing.
-                                "opacity-(--sheet-opacity) starting:opacity-0",
-                                `transition-opacity ease-[${EASE}]`,
-                                state.swiping
-                                  ? "duration-0 delay-0"
-                                  : expanded
-                                    ? "duration-200 delay-[250ms]"
-                                    : "duration-150 delay-0"
+                                "opacity-(--sheet-opacity) starting:opacity-0"
                               )}
                               style={{
                                 "--sheet-opacity": expanded
                                   ? "clamp(0, calc((var(--p) - 0.55) / 0.4), 1)"
                                   : "0",
+                                left: "calc(-1rem * (1 - var(--p)))",
+                                width: "calc(100% + 2rem * (1 - var(--p)))",
+                                height: "var(--popup-h)",
+                                // The fade is delayed; the geometry never is.
+                                transition: state.swiping
+                                  ? "none"
+                                  : expanded
+                                    ? `opacity 200ms ${EASE} 250ms, left ${TRAVEL_MS}ms ${EASE}, width ${TRAVEL_MS}ms ${EASE}`
+                                    : `opacity 150ms ${EASE}, left ${TRAVEL_MS}ms ${EASE}, width ${TRAVEL_MS}ms ${EASE}`,
                               } as React.CSSProperties}
                             >
                               <SheetContent
@@ -552,7 +562,7 @@ function ScannerDrawer({
                           <div
                             inert={expanded}
                             className={cn(
-                              "absolute inset-x-4 top-0 flex h-14 items-center gap-2 pl-4 pr-2 touch-none",
+                              "absolute inset-x-0 top-0 flex h-14 items-center gap-2 pl-4 pr-2 touch-none",
                               expanded ? "pointer-events-none" : "pointer-events-auto",
                               `transition-opacity ease-[${EASE}]`,
                               state.swiping
@@ -604,6 +614,7 @@ function ScannerDrawer({
                           </div>
                         </>
                       )}
+                      </div>
                     </div>
                   );
                 }}
