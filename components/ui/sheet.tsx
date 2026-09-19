@@ -206,14 +206,23 @@ export function BottomSheet({
           <Drawer.Portal>
             <Drawer.Backdrop
               className={cn(
-                "fixed inset-0 z-50 min-h-dvh bg-black",
+                // Stays position: fixed on iOS and dims through a translucent
+                // colour rather than opacity, on purpose: iOS 26 Safari
+                // ignores theme-color and tints its status bar from fixed
+                // elements near the top edge, reading background-color and
+                // ignoring opacity. A translucent black composites to the
+                // scrim's grey; an opaque black would tint it black, and an
+                // absolute scrim (the docs' iOS workaround) isn't sampled at
+                // all — which is why the status bar stayed white.
+                "fixed inset-0 z-50 min-h-dvh",
                 // Fades with the swipe; snaps instantly while the finger is
                 // down and releases at a speed scaled by the swipe velocity.
-                "opacity-[calc(0.4*(1-var(--drawer-swipe-progress)))]",
-                `transition-opacity duration-[450ms] ease-[${EASE}]`,
-                "data-swiping:duration-0 data-starting-style:opacity-0 data-ending-style:opacity-0",
-                "data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]",
-                "supports-[-webkit-touch-callout:none]:absolute"
+                "[background-color:rgb(0_0_0_/_calc(0.4*(1-var(--drawer-swipe-progress))))]",
+                `transition-[background-color] duration-[450ms] ease-[${EASE}]`,
+                "data-swiping:duration-0",
+                "data-starting-style:[background-color:rgb(0_0_0_/_0)]",
+                "data-ending-style:[background-color:rgb(0_0_0_/_0)]",
+                "data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]"
               )}
             />
             <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center touch-none">
