@@ -17,7 +17,7 @@ import { houseTint } from "@/lib/config";
 import type { Checkin, SchoolEvent, Student } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
+import { BottomSheet } from "@/components/ui/sheet";
 import { StudentForm } from "@/components/student-form";
 import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
@@ -265,13 +265,11 @@ export function StudentSheetProvider({
 
   return (
     <StudentSheetContext.Provider value={{ openStudent, openAddStudent }}>
-      {/* The page nests through each sheet's Root so the depth outlet in
-          AppShell can read their travel and scale the page back. */}
+      {children}
       <BottomSheet
         presented={open}
         onPresentedChange={setOpen}
         title="Student details"
-        componentId={BOTTOM_SHEET_IDS.student}
         flush
         content={
           studentId && (
@@ -284,32 +282,28 @@ export function StudentSheetProvider({
             />
           )
         }
-      >
-        {/* Forms in a sheet: Silk's Scroll keeps the focused input above
-            the on-screen keyboard, which is what vaul couldn't do for us. */}
-        <BottomSheet
-          presented={addOpen}
-          onPresentedChange={setAddOpen}
-          title="Add student"
-          componentId={BOTTOM_SHEET_IDS.addStudent}
-          content={
-            <>
-              <h2 className="mb-4 text-2xl font-bold text-stone-900">
-                Add student
-              </h2>
-              <StudentForm
-                key={addCount}
-                onSaved={() => {
-                  setAddOpen(false);
-                  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
-                }}
-              />
-            </>
-          }
-        >
-          {children}
-        </BottomSheet>
-      </BottomSheet>
+      />
+      {/* Forms in a sheet: the drawer's virtual-keyboard handling keeps
+          the focused input above the on-screen keyboard. */}
+      <BottomSheet
+        presented={addOpen}
+        onPresentedChange={setAddOpen}
+        title="Add student"
+        content={
+          <>
+            <h2 className="mb-4 text-2xl font-bold text-stone-900">
+              Add student
+            </h2>
+            <StudentForm
+              key={addCount}
+              onSaved={() => {
+                setAddOpen(false);
+                window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
+              }}
+            />
+          </>
+        }
+      />
     </StudentSheetContext.Provider>
   );
 }

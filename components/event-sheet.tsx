@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SchoolEvent } from "@/lib/types";
 import { EventForm } from "@/components/event-form";
-import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
+import { BottomSheet } from "@/components/ui/sheet";
 import { DATA_CHANGED_EVENT } from "@/lib/data-events";
 
 interface EventSheetContextValue {
@@ -55,12 +55,9 @@ export function EventSheetProvider({
 
   return (
     <EventSheetContext.Provider value={{ openNewEvent, openEditEvent }}>
-      {/* The page nests through the sheet's Root so the depth outlet in
-          AppShell can read its travel and scale the page back. */}
       <BottomSheet
         presented={open}
         onPresentedChange={setOpen}
-        componentId={BOTTOM_SHEET_IDS.event}
         title={editing ? "Edit event" : "New event"}
         content={
           <>

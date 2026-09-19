@@ -1,87 +1,61 @@
 "use client";
 
-import { Scroll, Sheet, createComponentId } from "@silk-hq/components";
+import { useRef } from "react";
+import { Drawer } from "@base-ui/react/drawer";
 import { cn } from "@/lib/utils";
 
 /**
- * The app's bottom sheet, on Silk.
+ * The app's bottom sheet, on Base UI Drawer.
  *
- * Silk is used under its non-commercial license (granted for this school
- * project). The `license` prop is required by the library — it declares
- * which license the app is using.
+ * Every sheet is a modal drawer rising from the bottom edge: swipe down,
+ * tap the scrim, or press Escape to dismiss. It hugs its content, capped
+ * at 92dvh, and scrolls inside `Drawer.Content` past that.
  *
- * The content sits inside a Silk `Scroll` on purpose: its default
- * `safeArea="visual-viewport"` measures the viewport *minus the on-screen
- * keyboard*, and `onFocusInside={{ scrollIntoView: true }}` scrolls the
- * focused input clear of it. That combination is what makes forms usable
- * in a sheet on iOS.
+ * The white surface carries a 3rem "bleed" below the viewport edge, so
+ * pulling the sheet up past its resting height shows white instead of a
+ * gap. `Drawer.VirtualKeyboardProvider` keeps a focused field clear of
+ * the software keyboard — that's what makes a form usable inside a
+ * fixed sheet on iOS.
  *
- * The sheet hugs its content (capped at 92dvh). The white surface lives
- * on `<Sheet.BleedingBackground>`, not the content box — it extends
- * beyond the bottom edge so pulling the sheet up past its height shows
- * white instead of a gap.
- *
- * Width discipline: iOS occasionally feeds Silk a stale viewport width
- * (the same standalone quirk AppShell nudges around), which showed up as
- * sheet content spilling past the right edge. The `!` width clamps on
- * the Scroll pieces out-rank any inline width Silk computes.
+ * The depth effect (the page receding behind an open sheet) is wired
+ * once at the app level — `SheetProvider` at the root, `SheetDepthOutlet`
+ * around the page — and every BottomSheet beneath drives it. Sheets no
+ * longer need to nest the page or carry an id.
  */
 
-/**
- * Stable ids so the page content can be animated with each sheet's
- * travel (the "depth" effect) via `SheetDepthOutlet` below.
- */
-export const BOTTOM_SHEET_IDS = {
-  student: createComponentId(),
-  addStudent: createComponentId(),
-  event: createComponentId(),
-  house: createComponentId(),
-} as const;
+const EASE = "cubic-bezier(0.32,0.72,0,1)";
 
-type BottomSheetId = (typeof BOTTOM_SHEET_IDS)[keyof typeof BOTTOM_SHEET_IDS];
-
-const DEPTH_ANIMATION = {
-  // The page recedes as the sheet rises — iOS's modal "depth" treatment.
-  // Function syntax throughout: Silk keeps these applied while the sheet
-  // rests at its open detent (keyframe arrays get cleaned up there).
-  scale: ({ progress }: { progress: number }) =>
-    1 - Math.max(0, Math.min(1, progress)) * 0.06,
-  clipPath: ({ progress }: { progress: number }) =>
-    `inset(0px round ${Math.max(0, progress) * 28}px)`,
-};
+/** Wrap the app once; every BottomSheet beneath it reports to the outlet. */
+export function SheetProvider({ children }: { children: React.ReactNode }) {
+  return <Drawer.Provider>{children}</Drawer.Provider>;
+}
 
 /**
- * Wrap the page content once; it scales back behind whichever app sheet
- * is presented. Outlets nest (one per sheet) — only the traveling
- * sheet's outlet is ever mid-animation, the rest sit at identity.
+ * Wrap the page content once; it scales back and rounds off behind
+ * whichever sheet is open — iOS's modal "depth" treatment. During a
+ * swipe the transition drops to 0ms so the page follows the finger
+ * (`--drawer-swipe-progress` is non-zero only while swiping).
+ *
+ * Clip-path rather than overflow for the corners: the page's sticky
+ * header needs the window to stay its scroll container. No resting
+ * transform, so fixed descendants keep the viewport as their anchor.
  */
 export function SheetDepthOutlet({ children }: { children: React.ReactNode }) {
   return (
-    <Sheet.Outlet
-      forComponent={BOTTOM_SHEET_IDS.student}
-      travelAnimation={DEPTH_ANIMATION}
-      className="origin-top"
+    <Drawer.Indent
+      className={cn(
+        "origin-top",
+        "[--sheet-progress:var(--drawer-swipe-progress,0)]",
+        "[--indent-transition:calc(1-clamp(0,calc(var(--sheet-progress)*100000),1))]",
+        `[transition:transform_450ms_${EASE},clip-path_450ms_${EASE}]`,
+        "[transition-duration:calc(450ms*var(--indent-transition)),calc(450ms*var(--indent-transition))]",
+        "[clip-path:inset(0px_round_0px)]",
+        "data-active:[transform:scale(calc(0.94+0.06*var(--sheet-progress)))]",
+        "data-active:[clip-path:inset(0px_round_calc(28px*(1-var(--sheet-progress))))]"
+      )}
     >
-      <Sheet.Outlet
-        forComponent={BOTTOM_SHEET_IDS.addStudent}
-        travelAnimation={DEPTH_ANIMATION}
-        className="origin-top"
-      >
-        <Sheet.Outlet
-          forComponent={BOTTOM_SHEET_IDS.event}
-          travelAnimation={DEPTH_ANIMATION}
-          className="origin-top"
-        >
-          <Sheet.Outlet
-            forComponent={BOTTOM_SHEET_IDS.house}
-            travelAnimation={DEPTH_ANIMATION}
-            className="origin-top"
-          >
-            {children}
-          </Sheet.Outlet>
-        </Sheet.Outlet>
-      </Sheet.Outlet>
-    </Sheet.Outlet>
+      {children}
+    </Drawer.Indent>
   );
 }
 
@@ -89,7 +63,6 @@ export function BottomSheet({
   presented,
   onPresentedChange,
   title,
-  componentId,
   flush = false,
   className,
   content,
@@ -97,78 +70,82 @@ export function BottomSheet({
 }: {
   presented: boolean;
   onPresentedChange: (presented: boolean) => void;
+  /** Accessible name for the dialog (visually hidden). */
   title: string;
-  /** One of BOTTOM_SHEET_IDS, so the depth outlet can track this sheet. */
-  componentId?: BottomSheetId;
   /**
-   * Full-bleed content: no horizontal padding, and the grab handle
-   * floats over the content (for covers that reach the sheet's edges).
+   * Full-bleed content: no horizontal padding, and no grab handle — the
+   * content renders its own (for covers that reach the sheet's edges).
    */
   flush?: boolean;
   className?: string;
   /** The sheet's body. */
   content: React.ReactNode;
-  /**
-   * Subtree nested under this sheet's Root — the page goes here so
-   * `SheetDepthOutlet` (which reads the Root's context) can animate it.
-   */
+  /** Rendered as-is beside the sheet; kept so providers can wrap the app. */
   children?: React.ReactNode;
 }) {
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
-    <Sheet.Root
-      license="non-commercial"
-      componentId={componentId}
-      presented={presented}
-      onPresentedChange={onPresentedChange}
-      sheetRole="dialog"
-    >
+    <>
       {children}
-      <Sheet.Portal>
-        <Sheet.View className="z-50" nativeEdgeSwipePrevention>
-          {/* themeColorDimming requires an alpha-free background-color —
-              rgba() crashes its color parser on iOS (WebKit is the only
-              engine where "auto" activates). Dim via opacity keyframes
-              instead: black at 0.4 ≈ the usual bg-black/40 scrim. */}
-          <Sheet.Backdrop
-            className="bg-black"
-            themeColorDimming="auto"
-            travelAnimation={{ opacity: [0, 0.4] }}
-          />
-          <Sheet.Content
-            className={cn(
-              "flex h-auto max-h-[92dvh] w-full max-w-full flex-col overflow-x-clip",
-              className
-            )}
-          >
-            <Sheet.BleedingBackground className="overflow-hidden rounded-t-[2rem] bg-white" />
-            <Sheet.Title className="sr-only">{title}</Sheet.Title>
-            {/* flush content renders its own grab handle (an absolute
-                overlay here gets buried when Silk reshuffles layers after
-                the travel animation settles). */}
-            {!flush && (
-              <span
-                aria-hidden
-                className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-stone-300"
-              />
-            )}
-            <Scroll.Root asChild className="min-h-0 w-full! max-w-full! flex-1">
-              <Scroll.View
-                className="min-h-0 w-full! max-w-full! flex-1"
-                scrollGestureTrap
+      <Drawer.Root
+        open={presented}
+        onOpenChange={onPresentedChange}
+        swipeDirection="down"
+      >
+        <Drawer.VirtualKeyboardProvider>
+          <Drawer.Portal>
+            <Drawer.Backdrop
+              className={cn(
+                "fixed inset-0 z-50 min-h-dvh bg-black",
+                // Fades with the swipe; snaps instantly while the finger is
+                // down and releases at a speed scaled by the swipe velocity.
+                "opacity-[calc(0.4*(1-var(--drawer-swipe-progress)))]",
+                `transition-opacity duration-[450ms] ease-[${EASE}]`,
+                "data-swiping:duration-0 data-starting-style:opacity-0 data-ending-style:opacity-0",
+                "data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]",
+                "supports-[-webkit-touch-callout:none]:absolute"
+              )}
+            />
+            <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center touch-none">
+              <Drawer.Popup
+                ref={popupRef}
+                // Touch opens shouldn't pop the keyboard mid-travel: focus
+                // the sheet itself. Keyboard and mouse get the first field.
+                initialFocus={(type) =>
+                  type === "touch" ? popupRef.current : true
+                }
+                className={cn(
+                  "relative flex w-full max-w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-float outline-none touch-none",
+                  "[--bleed:3rem] -mb-[var(--bleed)] max-h-[calc(92dvh+var(--bleed))] pb-[var(--bleed)]",
+                  "[transform:translateY(var(--drawer-swipe-movement-y))]",
+                  `transition-transform duration-[450ms] ease-[${EASE}]`,
+                  "data-swiping:select-none",
+                  "data-starting-style:[transform:translateY(calc(100%+2px))]",
+                  "data-ending-style:[transform:translateY(calc(100%+2px))]",
+                  "data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]",
+                  className
+                )}
               >
-                <Scroll.Content
+                <Drawer.Title className="sr-only">{title}</Drawer.Title>
+                {!flush && (
+                  <span
+                    aria-hidden
+                    className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-stone-300"
+                  />
+                )}
+                <Drawer.Content
                   className={cn(
-                    "w-full! max-w-full! pb-[max(env(safe-area-inset-bottom),1.5rem)]",
-                    flush ? "overflow-hidden rounded-t-[2rem]" : "px-5 pt-4"
+                    "min-h-0 w-full flex-1 overflow-y-auto overscroll-contain touch-auto pb-[max(env(safe-area-inset-bottom),1.5rem)]",
+                    !flush && "px-5 pt-4"
                   )}
                 >
                   {content}
-                </Scroll.Content>
-              </Scroll.View>
-            </Scroll.Root>
-          </Sheet.Content>
-        </Sheet.View>
-      </Sheet.Portal>
-    </Sheet.Root>
+                </Drawer.Content>
+              </Drawer.Popup>
+            </Drawer.Viewport>
+          </Drawer.Portal>
+        </Drawer.VirtualKeyboardProvider>
+      </Drawer.Root>
+    </>
   );
 }

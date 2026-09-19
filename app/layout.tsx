@@ -9,6 +9,7 @@ import { HouseSheetProvider } from "@/components/house-sheet";
 import { ScannerProvider } from "@/components/scanner-sheet";
 import { FlagsProvider } from "@/components/flags-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { SheetProvider } from "@/components/ui/sheet";
 import { AppShell } from "@/components/app-shell";
 import { APP_NAME, SCHOOL_NAME } from "@/lib/config";
 import { evaluateFlags } from "@/lib/flags";
@@ -62,15 +63,19 @@ export default async function RootLayout({
           <SessionProvider>
             <MotionProvider>
               <ToastProvider>
-                <StudentSheetProvider>
-                  <EventSheetProvider>
-                    <HouseSheetProvider>
-                      <ScannerProvider>
-                        <AppShell>{children}</AppShell>
-                      </ScannerProvider>
-                    </HouseSheetProvider>
-                  </EventSheetProvider>
-                </StudentSheetProvider>
+                {/* Every sheet reports to this provider, which drives the
+                    depth effect on the page in AppShell. */}
+                <SheetProvider>
+                  <StudentSheetProvider>
+                    <EventSheetProvider>
+                      <HouseSheetProvider>
+                        <ScannerProvider>
+                          <AppShell>{children}</AppShell>
+                        </ScannerProvider>
+                      </HouseSheetProvider>
+                    </EventSheetProvider>
+                  </StudentSheetProvider>
+                </SheetProvider>
               </ToastProvider>
             </MotionProvider>
           </SessionProvider>

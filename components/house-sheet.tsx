@@ -9,7 +9,7 @@ import type { House } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
-import { BOTTOM_SHEET_IDS, BottomSheet } from "@/components/ui/sheet";
+import { BottomSheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
@@ -183,7 +183,6 @@ export function HouseSheetProvider({ children }: { children: React.ReactNode }) 
       <BottomSheet
         presented={open}
         onPresentedChange={setOpen}
-        componentId={BOTTOM_SHEET_IDS.house}
         title={editing ? "Edit house" : "New house"}
         content={
           <HouseForm
