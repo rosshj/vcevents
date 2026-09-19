@@ -32,10 +32,14 @@ export function useThemeColor(color: string) {
     const prevBodyBg = body.style.backgroundColor;
     root.style.backgroundColor = color;
     body.style.backgroundColor = color;
+    // Published as a variable too, so the sheet dimmer (globals.css)
+    // can derive the under-scrim colour without capturing state.
+    root.style.setProperty("--page-bg", color);
     return () => {
       el.content = DEFAULT_THEME_COLOR;
       root.style.backgroundColor = prevRootBg;
       body.style.backgroundColor = prevBodyBg;
+      root.style.removeProperty("--page-bg");
     };
   }, [color]);
 }

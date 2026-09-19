@@ -34,17 +34,21 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
 const SCRIM_OPACITY = 0.4;
 
 /**
- * A colour under a black layer of the scrim's opacity. Accepts `#rrggbb`
- * (the meta) and `rgb(r, g, b)` (computed styles); anything else is
- * returned untouched.
+ * A colour under a black layer of the scrim's opacity. Accepts `#rgb` /
+ * `#rrggbb` (the meta, and computed custom properties, which some
+ * engines shorten) and `rgb(r, g, b)`; anything else is returned untouched.
  */
 function dimColor(color: string): string {
   const c = color.trim();
-  const hex = /^#?([0-9a-f]{6})$/i.exec(c);
+  const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
   const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
   let channels: number[];
   if (hex) {
-    const n = parseInt(hex[1], 16);
+    const h =
+      hex[1].length === 3
+        ? hex[1].split("").map((d) => d + d).join("")
+        : hex[1];
+    const n = parseInt(h, 16);
     channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   } else if (rgb) {
     channels = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
@@ -60,49 +64,39 @@ function dimColor(color: string): string {
     .join("")}`;
 }
 
+/** The screen's own chrome colour: what useThemeColor published, else white. */
+function pageBg(): string {
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue("--page-bg")
+    .trim();
+  return v || "#ffffff";
+}
+
 /**
  * Dims the browser chrome while a sheet is open, so the status bar reads
  * as sitting under the scrim rather than floating above it (what Silk's
- * themeColorDimming did). Same three surfaces `useThemeColor` paints —
- * the theme-color meta, and the <html> and <body> backgrounds that newer
- * iOS Safari samples for its glass — each darkened in place and put back
- * on close, unless the screen changed it in the meantime.
+ * themeColorDimming did).
+ *
+ * Nothing is captured or restored — that raced with useThemeColor, which
+ * paints the same properties for the pass and the scanner. Instead the
+ * open state is an attribute on <html>; globals.css derives the dimmed
+ * <html>/<body> backgrounds (what newer iOS Safari samples for its
+ * glass) from --page-bg, and the theme-color meta is recomputed from the
+ * same variable on both edges, whatever the screen has set it to since.
  */
 function ThemeColorDim({ active }: { active: boolean }) {
   useEffect(() => {
-    if (!active) return;
+    const root = document.documentElement;
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]'
     );
-    const root = document.documentElement;
-    const body = document.body;
-
-    const baseMeta = meta?.content ?? null;
-    const dimmedMeta = baseMeta === null ? null : dimColor(baseMeta);
-    if (meta && dimmedMeta !== null) meta.content = dimmedMeta;
-
-    // Inline values are what we restore; computed values are what we dim
-    // (the inline one is usually empty, with the colour coming from CSS).
-    const paint = (el: HTMLElement) => {
-      const inline = el.style.backgroundColor;
-      el.style.backgroundColor = dimColor(getComputedStyle(el).backgroundColor);
-      // Read back as the browser stores it (it normalises to rgb()), so
-      // the "unchanged since" check on restore compares like with like.
-      const applied = el.style.backgroundColor;
-      return () => {
-        if (el.style.backgroundColor === applied) el.style.backgroundColor = inline;
-      };
-    };
-    const restoreRoot = paint(root);
-    const restoreBody = paint(body);
-
-    return () => {
-      if (meta && dimmedMeta !== null && meta.content === dimmedMeta) {
-        meta.content = baseMeta ?? "";
-      }
-      restoreRoot();
-      restoreBody();
-    };
+    if (active) {
+      root.dataset.sheetOpen = "";
+      if (meta) meta.content = dimColor(pageBg());
+    } else {
+      delete root.dataset.sheetOpen;
+      if (meta) meta.content = pageBg();
+    }
   }, [active]);
   return null;
 }
