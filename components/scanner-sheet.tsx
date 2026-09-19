@@ -11,14 +11,8 @@ import {
 } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import {
-  AnimatePresence,
-  animate,
-  motion,
-  useMotionValue,
-  useMotionValueEvent,
-  useTransform,
-} from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Drawer } from "@base-ui/react/drawer";
 import {
   CameraOff,
   Check,
@@ -51,22 +45,23 @@ import { DATA_CHANGED_EVENT } from "@/lib/data-events";
  * back. On an event detail page before operating starts, the bar shows
  * idle ("Ready to scan") and tapping it starts the session.
  *
- * The dark surface is ONE persistent element whose box is driven by a
- * continuous `progress` motion value (0 = bar, 1 = sheet): pans scrub it
- * with the finger, releases and taps spring it. At rest it renders
- * CSS-anchored so sneaky iOS viewport resizes can't drift it.
+ * On Base UI Drawer: a non-modal drawer with two snap points — the
+ * docked bar and the full sheet. Swipes scrub between them and taps flip
+ * `expanded`, which the snap point follows. Gestures never dismiss it;
+ * `visible` alone decides whether it's mounted, so the bar is the floor.
  */
-
-/** Geometry of the docked bar — the surface and its content layer share it. */
-const BAR_GEOM =
-  "left-4 right-4 bottom-[calc(max(env(safe-area-inset-bottom),1rem)+4.6rem)] mx-auto h-14 max-w-md";
 
 /**
- * The expanded sheet is a phone-width column: full-bleed on phones, a
- * centered 480px column on desktop instead of a viewport-wide camera.
+ * Clearance under the docked bar: the tab bar and its bottom inset. The
+ * bar sits this far up from the viewport's bottom edge.
  */
-const SHEET_MAX_W = 480;
-const SHEET_GEOM = "inset-y-0 left-0 right-0 mx-auto w-full max-w-[480px]";
+const BAR_CLEARANCE = "calc(max(env(safe-area-inset-bottom),1rem) + 4.6rem)";
+
+/** Snap point used until the bar has been measured (56px bar + ~90px clearance). */
+const BAR_SNAP_FALLBACK = 146;
+
+/** Shared curve for the surface morph and the drawer's own travel. */
+const EASE = "cubic-bezier(0.32,0.72,0,1)";
 
 const RESULT_CAP = 60;
 
@@ -279,30 +274,30 @@ export function ScannerSheet({ showBar }: { showBar: boolean }) {
 
   const visible = Boolean(event) && (expanded || showBar);
 
+  // The last event shown outlives `event` by one exit animation, so the
+  // bar doesn't blank the moment operating stops. (State adjusted during
+  // render — React's pattern for deriving from a changed prop.)
+  const [shownEvent, setShownEvent] = useState<SchoolEvent | null>(null);
+  if (event && event !== shownEvent) setShownEvent(event);
+
   return (
-    <>
-      <AnimatePresence>
-        {visible && event && (
-          <ScannerSurface
-            key="scanner"
-            event={event}
-            expanded={expanded}
-            operating={operating}
-            mode={mode}
-            onModeChange={setMode}
-            tally={tally}
-            schoolSize={schoolSize}
-            startedAt={activeOp?.startedAt ?? null}
-            lastCheckin={last}
-            onCheckin={onCheckin}
-            onUndoLast={undoLast}
-            onExpand={openSheet}
-            onCollapse={collapse}
-            onStop={stop}
-          />
-        )}
-      </AnimatePresence>
-    </>
+    <ScannerDrawer
+      open={visible}
+      event={shownEvent}
+      expanded={expanded}
+      operating={operating}
+      mode={mode}
+      onModeChange={setMode}
+      tally={tally}
+      schoolSize={schoolSize}
+      startedAt={activeOp?.startedAt ?? null}
+      lastCheckin={last}
+      onCheckin={onCheckin}
+      onUndoLast={undoLast}
+      onExpand={openSheet}
+      onCollapse={collapse}
+      onStop={stop}
+    />
   );
 }
 
@@ -311,22 +306,15 @@ function ScannerThemeColor() {
   return null;
 }
 
-const SPRING = { type: "spring", stiffness: 380, damping: 40 } as const;
-
-interface SurfaceMetrics {
-  barTop: number;
-  barLeft: number;
-  barWidth: number;
-  barHeight: number;
-  vw: number;
-  vh: number;
-}
-
 /**
- * The persistent scanner UI: gesture wrapper + morphing surface + content
- * layers, mounted whenever there's something to show (sheet or bar).
+ * The persistent scanner UI: a two-snap-point drawer whose popup is a
+ * transparent, phone-width column. Inside it, one dark surface is the
+ * docked pill at rest and the full sheet while expanded or mid-swipe —
+ * so a drag lifts the whole sheet out from behind the bar rather than
+ * dragging a pill around. Content layers crossfade over it.
  */
-function ScannerSurface({
+function ScannerDrawer({
+  open,
   event,
   expanded,
   operating,
@@ -342,7 +330,8 @@ function ScannerSurface({
   onCollapse,
   onStop,
 }: {
-  event: SchoolEvent;
+  open: boolean;
+  event: SchoolEvent | null;
   expanded: boolean;
   operating: boolean;
   mode: ScanMode;
@@ -357,315 +346,203 @@ function ScannerSurface({
   onCollapse: () => void;
   onStop: () => void;
 }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  // The docked snap point is "px visible from the bottom": the bar plus
+  // its clearance. Measured from a probe outside the drawer (a transformed
+  // popup would re-anchor a fixed probe), and re-read on viewport changes
+  // — iOS reports some only on visualViewport.
   const probeRef = useRef<HTMLDivElement>(null);
-  const metricsRef = useRef<SurfaceMetrics | null>(null);
-  const [measured, setMeasured] = useState(false);
-  const progress = useMotionValue(expanded ? 1 : 0);
-  const panStart = useRef<number | null>(null);
-  const panMoved = useRef(false);
-  const expandedRef = useRef(expanded);
-  useEffect(() => {
-    expandedRef.current = expanded;
-  }, [expanded]);
-
-  // Measure the bar geometry (offset*, so entrance transforms don't skew
-  // it) and the viewport. Only trusted for the DURATION of an interaction —
-  // it's re-read right as each one starts, because iOS resizes the
-  // viewport without telling anyone (see the nudge hack in AppShell). At
-  // rest the surface is CSS-anchored instead, which can't drift.
-  const readMetrics = useCallback(() => {
+  const [barSnap, setBarSnap] = useState(BAR_SNAP_FALLBACK);
+  const measure = useCallback(() => {
     const probe = probeRef.current;
-    const wrapper = wrapperRef.current;
-    if (!probe || !wrapper) return;
-    metricsRef.current = {
-      barTop: probe.offsetTop,
-      barLeft: probe.offsetLeft,
-      barWidth: probe.offsetWidth,
-      barHeight: probe.offsetHeight,
-      vw: wrapper.clientWidth,
-      vh: wrapper.clientHeight,
-    };
-    progress.set(progress.get()); // recompute transforms with fresh metrics
-  }, [progress]);
-
-  useEffect(() => {
-    const onMeasure = () => {
-      readMetrics();
-      setMeasured(true);
-    };
-    const raf = requestAnimationFrame(onMeasure);
-    window.addEventListener("resize", onMeasure);
-    // iOS reports some viewport changes only here, not on window resize.
-    window.visualViewport?.addEventListener("resize", onMeasure);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onMeasure);
-      window.visualViewport?.removeEventListener("resize", onMeasure);
-    };
-  }, [readMetrics]);
-
-  // Taps, buttons, and gesture releases flip `expanded`; the visual state
-  // follows by springing progress to match — from wherever the finger
-  // left it, so gestures hand off seamlessly.
-  useEffect(() => {
-    readMetrics();
-    const controls = animate(progress, expanded ? 1 : 0, SPRING);
-    return () => controls.stop();
-  }, [expanded, progress, readMetrics]);
-
-  // Post-drag clicks would re-trigger buttons under the finger; swallow
-  // them in capture phase after any real pan.
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const onClickCapture = (e: MouseEvent) => {
-      if (panMoved.current) {
-        e.preventDefault();
-        e.stopPropagation();
-        panMoved.current = false;
-      }
-    };
-    el.addEventListener("click", onClickCapture, true);
-    return () => el.removeEventListener("click", onClickCapture, true);
+    if (!probe) return;
+    const px = window.innerHeight - probe.getBoundingClientRect().top;
+    if (px > 0) setBarSnap(Math.round(px));
   }, []);
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [measure]);
+  const snapPoints = useMemo(() => [barSnap, 1], [barSnap]);
 
-  // True whenever progress sits exactly at an endpoint — the surface then
-  // renders CSS-anchored so a mid-flight iOS viewport resize can't leave
-  // it hanging misaligned; the measured box takes over only in motion.
-  const [resting, setResting] = useState(true);
-  const restingRef = useRef(true);
-  // The dark canvas / status-bar tint applies only while the sheet
-  // actually covers the screen — keyed to progress, not `expanded`, so
-  // the page behind a still-growing surface keeps its light background,
-  // and flips back the instant a collapse starts.
-  const [covered, setCovered] = useState(expanded);
-  const coveredRef = useRef(expanded);
-  useMotionValueEvent(progress, "change", (p) => {
-    const r = p <= 0 || p >= 1;
-    if (r !== restingRef.current) {
-      restingRef.current = r;
-      setResting(r);
+  // A swipe past the bar asks to dismiss. Base UI reports snap point
+  // `null`, we refuse the close in onOpenChange, and it then restores the
+  // pre-swipe snap point — which, after a flick from full height, is
+  // "expanded". Treat the attempt as a collapse and swallow that restore.
+  const dismissAttempt = useRef(false);
+  const handleSnapPointChange = (point: Drawer.Root.SnapPoint | null) => {
+    if (point === null) {
+      dismissAttempt.current = true;
+      onCollapse();
+      return;
     }
-    const c = p >= 1;
-    if (c !== coveredRef.current) {
-      coveredRef.current = c;
-      setCovered(c);
+    if (dismissAttempt.current) {
+      dismissAttempt.current = false;
+      if (point === 1) return;
     }
-  });
-  // Live context value (props freeze while this component animates out of
-  // AnimatePresence): if the sheet is closing for any reason, restore the
-  // light canvas right away instead of after the exit animation.
-  const { expanded: liveExpanded } = useScanner();
-
-  const m = metricsRef;
-  const sheetRect = (mm: SurfaceMetrics) => {
-    const width = Math.min(mm.vw, SHEET_MAX_W);
-    return { width, left: (mm.vw - width) / 2 };
+    if (point === 1) onExpand();
+    else onCollapse();
   };
-  const top = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
-  const left = useTransform(progress, (p) => {
-    const mm = m.current;
-    if (!mm) return 0;
-    return mm.barLeft + p * (sheetRect(mm).left - mm.barLeft);
-  });
-  const width = useTransform(progress, (p) => {
-    const mm = m.current;
-    if (!mm) return 0;
-    return mm.barWidth + p * (sheetRect(mm).width - mm.barWidth);
-  });
-  const height = useTransform(progress, (p) => {
-    const mm = m.current;
-    return mm ? mm.barHeight + p * (mm.vh - mm.barHeight) : 0;
-  });
-  // Corners grow with the surface (native sheets keep device-radius
-  // corners at full screen) rather than flattening out mid-morph.
-  const radius = useTransform(progress, [0, 1], [20, 48]);
-  const bg = useTransform(progress, [0, 1], ["#1c1917", "#0c0a09"]);
-  // Content follows the surface's top edge; opacity hands over midway.
-  const sheetY = useTransform(progress, (p) => (1 - p) * (m.current?.barTop ?? 0));
-  const barY = useTransform(progress, (p) => -p * (m.current?.barTop ?? 0));
-  const sheetContentOpacity = useTransform(progress, [0.55, 0.95], [0, 1]);
-  const barContentOpacity = useTransform(progress, [0, 0.35], [1, 0]);
 
   return (
-    <motion.div
-      ref={wrapperRef}
-      // Entering as the sheet: present from the bottom. Entering as the
-      // bar (e.g. navigating to a root tab while operating): fade up.
-      initial={expanded ? { y: "110%" } : { y: 16, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={
-        expanded
-          ? { y: "70%", opacity: 0, transition: { duration: 0.25 } }
-          : { y: 24, opacity: 0, transition: { duration: 0.2 } }
-      }
-      transition={{ type: "spring", stiffness: 400, damping: 38 }}
-      onTapStart={() => {
-        panMoved.current = false;
-      }}
-      onPanStart={(e) => {
-        // Scrollable regions (the search results) own their vertical
-        // gesture; the sheet is dragged from anywhere else.
-        if (
-          (e.target as HTMLElement | null)?.closest?.("[data-scroll-region]")
-        ) {
-          panStart.current = null;
-          return;
-        }
-        panMoved.current = false;
-        readMetrics(); // fresh geometry the moment the finger takes over
-        progress.stop();
-        panStart.current = progress.get();
-      }}
-      onPan={(_, info) => {
-        const mm = metricsRef.current;
-        const start = panStart.current;
-        if (!mm || start === null || mm.barTop <= 0) return;
-        if (Math.abs(info.offset.y) > 8) panMoved.current = true;
-        const p = start - info.offset.y / mm.barTop;
-        progress.set(Math.min(1, Math.max(0, p)));
-      }}
-      onPanEnd={(_, info) => {
-        if (panStart.current === null) return;
-        panStart.current = null;
-        const p = progress.get();
-        const v = info.velocity.y;
-        let target: boolean;
-        if (v < -500) target = true;
-        else if (v > 500) target = false;
-        else target = expandedRef.current ? p > 0.8 : p > 0.2;
-        if (target !== expandedRef.current) {
-          if (target) onExpand();
-          else onCollapse();
-        } else {
-          void animate(progress, target ? 1 : 0, SPRING);
-        }
-      }}
-      data-dark-surface
-      className="pointer-events-none fixed inset-0 z-50 text-white"
-    >
-      {covered && liveExpanded && <ScannerThemeColor />}
-
+    <>
       {/* Invisible probe carrying the bar geometry, purely to measure. */}
       <div
         ref={probeRef}
         aria-hidden
-        className={cn("pointer-events-none absolute opacity-0", BAR_GEOM)}
+        className="pointer-events-none fixed inset-x-4 h-14 opacity-0"
+        style={{ bottom: BAR_CLEARANCE }}
       />
-
-      {measured && (
-        <>
-          {/* The morphing dark surface — CSS-anchored at rest (immune to
-              sneaky viewport resizes), measurement-driven while moving.
-              The boxes coincide at the swap because metrics are re-read
-              as each interaction starts. */}
-          {resting ? (
-            <div
-              onClick={expanded ? undefined : onExpand}
-              className={cn(
-                "pointer-events-auto absolute touch-none shadow-float",
-                expanded
-                  ? cn(SHEET_GEOM, "rounded-[48px] bg-stone-950")
-                  : cn(BAR_GEOM, "rounded-[20px] bg-stone-900")
-              )}
-            />
-          ) : (
-            <motion.div
-              style={{ top, left, width, height, borderRadius: radius, backgroundColor: bg }}
-              className="pointer-events-auto absolute touch-none shadow-float"
-            />
-          )}
-
-          {/* Content layers ride the surface and crossfade over it. */}
-          <AnimatePresence initial={false}>
-            {expanded ? (
-              <motion.div
-                key="sheet-content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { duration: 0.15 } }}
-                exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                style={{ y: sheetY }}
-                className={cn(
-                  "pointer-events-auto absolute touch-none",
-                  SHEET_GEOM
-                )}
-              >
-                <motion.div
-                  style={{ opacity: sheetContentOpacity }}
-                  className="flex h-full min-h-0 flex-col"
-                >
-                  <SheetContent
-                    event={event}
-                    mode={mode}
-                    onModeChange={onModeChange}
-                    tally={tally}
-                    schoolSize={schoolSize}
-                    startedAt={startedAt}
-                    lastCheckin={lastCheckin}
-                    onCheckin={onCheckin}
-                    onUndoLast={onUndoLast}
-                    onCollapse={onCollapse}
-                  />
-                </motion.div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="bar-content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { duration: 0.15 } }}
-                exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                style={{ y: barY }}
-                className={cn(
-                  "pointer-events-auto absolute touch-none",
-                  BAR_GEOM
-                )}
-              >
-                <motion.div
-                  style={{ opacity: barContentOpacity }}
-                  className="flex h-full items-center gap-2 pl-4 pr-2"
-                >
-                  <button
-                    onClick={onExpand}
-                    aria-label={operating ? "Expand scanner" : "Start scanning"}
-                    className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
-                  >
-                    {operating ? (
-                      <span className="relative flex h-2.5 w-2.5 shrink-0">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                      </span>
-                    ) : (
-                      <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-stone-500" />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold leading-tight">
-                        {event.name}
-                      </span>
-                      <span className="block text-[11px] leading-tight text-white/60">
-                        {operating
-                          ? `Scanning · ${tally ?? "–"} checked in`
-                          : "Ready to scan · tap to start"}
-                      </span>
-                    </span>
-                    <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
-                  </button>
-                  {operating && (
-                    <button
-                      onClick={onStop}
-                      aria-label="Stop operating this event"
-                      className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
+      {/* Its own provider: the app-level one drives the page's depth
+          effect, and a docked bar isn't a reason to recede the page. */}
+      <Drawer.Provider>
+        <Drawer.Root
+          open={open}
+          modal={false}
+          disablePointerDismissal
+          swipeDirection="down"
+          snapPoints={snapPoints}
+          snapPoint={expanded ? 1 : barSnap}
+          onSnapPointChange={handleSnapPointChange}
+          onOpenChange={(next, details) => {
+            // Swipes past the bar and Escape collapse rather than dismiss —
+            // the docked bar is the floor. Only `open` unmounts the drawer.
+            if (!next) {
+              details.cancel();
+              onCollapse();
+            }
+          }}
+        >
+          <Drawer.Portal>
+            <Drawer.Viewport className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center">
+              <Drawer.Popup
+                initialFocus={false}
+                finalFocus={false}
+                render={(props, state) => {
+                  // Expanded or mid-swipe, the surface is the sheet; at
+                  // rest on the bar snap point it's the pill.
+                  const sheet = state.expanded || state.swiping;
+                  return (
+                    <div
+                      {...props}
+                      data-dark-surface
+                      className={cn(
+                        "pointer-events-none relative h-full w-full max-w-[480px] text-white outline-none",
+                        "[transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))]",
+                        `transition-transform duration-[450ms] ease-[${EASE}]`,
+                        "data-starting-style:[transform:translateY(100%)]",
+                        "data-ending-style:[transform:translateY(100%)] data-ending-style:duration-300"
+                      )}
                     >
-                      Stop
-                    </button>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-    </motion.div>
+                      {open && state.expanded && !state.swiping && (
+                        <ScannerThemeColor />
+                      )}
+                      <Drawer.Title className="sr-only">Check-in</Drawer.Title>
+
+                      {/* The dark surface. */}
+                      <div
+                        onClick={expanded ? undefined : onExpand}
+                        className={cn(
+                          "pointer-events-auto absolute top-0 shadow-float touch-none",
+                          `transition-[inset,height,border-radius,background-color] duration-[350ms] ease-[${EASE}]`,
+                          sheet
+                            ? "inset-x-0 h-full rounded-[48px] bg-stone-950"
+                            : "inset-x-4 h-14 rounded-[20px] bg-stone-900"
+                        )}
+                      />
+
+                      {/* Content layers ride the surface and crossfade. */}
+                      {event && (
+                        <AnimatePresence initial={false}>
+                          {expanded ? (
+                            <motion.div
+                              key="sheet-content"
+                              initial={{ opacity: 0 }}
+                              animate={{
+                                opacity: 1,
+                                transition: { duration: 0.15, delay: 0.1 },
+                              }}
+                              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                              className="pointer-events-auto absolute inset-0 flex flex-col touch-none"
+                            >
+                              <SheetContent
+                                event={event}
+                                mode={mode}
+                                onModeChange={onModeChange}
+                                tally={tally}
+                                schoolSize={schoolSize}
+                                startedAt={startedAt}
+                                lastCheckin={lastCheckin}
+                                onCheckin={onCheckin}
+                                onUndoLast={onUndoLast}
+                                onCollapse={onCollapse}
+                              />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="bar-content"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1, transition: { duration: 0.15 } }}
+                              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                              className={cn(
+                                "pointer-events-auto absolute inset-x-4 top-0 flex h-14 items-center gap-2 pl-4 pr-2 touch-none",
+                                // The pill is gone mid-swipe; so is its label.
+                                state.swiping && "opacity-0"
+                              )}
+                            >
+                              <button
+                                onClick={onExpand}
+                                aria-label={
+                                  operating ? "Expand scanner" : "Start scanning"
+                                }
+                                className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
+                              >
+                                {operating ? (
+                                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-stone-500" />
+                                )}
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold leading-tight">
+                                    {event.name}
+                                  </span>
+                                  <span className="block text-[11px] leading-tight text-white/60">
+                                    {operating
+                                      ? `Scanning · ${tally ?? "–"} checked in`
+                                      : "Ready to scan · tap to start"}
+                                  </span>
+                                </span>
+                                <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
+                              </button>
+                              {operating && (
+                                <button
+                                  onClick={onStop}
+                                  aria-label="Stop operating this event"
+                                  className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
+                                >
+                                  Stop
+                                </button>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            </Drawer.Viewport>
+          </Drawer.Portal>
+        </Drawer.Root>
+      </Drawer.Provider>
+    </>
   );
 }
 
@@ -1171,8 +1048,10 @@ function SearchPanel({
   };
 
   return (
+    // The results list owns its vertical gesture — a drag here scrolls the
+    // list rather than the sheet.
     <div
-      data-scroll-region
+      data-base-ui-swipe-ignore
       className="mx-4 flex min-h-0 flex-1 flex-col gap-2.5 rounded-3xl bg-stone-900 p-3.5"
     >
       <Input
@@ -1183,7 +1062,7 @@ function SearchPanel({
         autoFocus
       />
       <GradeFilter value={grade} onChange={setGrade} variant="dark" />
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-auto">
         {shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/50">
             {query.trim() || grade !== null
