@@ -33,24 +33,40 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
 /** The scrim is black at this opacity; the status bar dims to match. */
 const SCRIM_OPACITY = 0.4;
 
-/** `#rrggbb` under a black layer of the scrim's opacity. */
-function dimHex(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  const channel = (shift: number) =>
-    Math.round(((n >> shift) & 255) * (1 - SCRIM_OPACITY))
-      .toString(16)
-      .padStart(2, "0");
-  return `#${channel(16)}${channel(8)}${channel(0)}`;
+/**
+ * A colour under a black layer of the scrim's opacity. Accepts `#rrggbb`
+ * (the meta) and `rgb(r, g, b)` (computed styles); anything else is
+ * returned untouched.
+ */
+function dimColor(color: string): string {
+  const c = color.trim();
+  const hex = /^#?([0-9a-f]{6})$/i.exec(c);
+  const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
+  let channels: number[];
+  if (hex) {
+    const n = parseInt(hex[1], 16);
+    channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  } else if (rgb) {
+    channels = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  } else {
+    return color;
+  }
+  return `#${channels
+    .map((v) =>
+      Math.round(v * (1 - SCRIM_OPACITY))
+        .toString(16)
+        .padStart(2, "0")
+    )
+    .join("")}`;
 }
 
 /**
  * Dims the browser chrome while a sheet is open, so the status bar reads
  * as sitting under the scrim rather than floating above it (what Silk's
- * themeColorDimming did). Whatever theme-color the screen set — white,
- * a house colour on the pass — is darkened in place and restored on
- * close, unless the screen changed it in the meantime.
+ * themeColorDimming did). Same three surfaces `useThemeColor` paints —
+ * the theme-color meta, and the <html> and <body> backgrounds that newer
+ * iOS Safari samples for its glass — each darkened in place and put back
+ * on close, unless the screen changed it in the meantime.
  */
 function ThemeColorDim({ active }: { active: boolean }) {
   useEffect(() => {
@@ -58,12 +74,34 @@ function ThemeColorDim({ active }: { active: boolean }) {
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]'
     );
-    if (!meta) return;
-    const base = meta.content;
-    const dimmed = dimHex(base);
-    meta.content = dimmed;
+    const root = document.documentElement;
+    const body = document.body;
+
+    const baseMeta = meta?.content ?? null;
+    const dimmedMeta = baseMeta === null ? null : dimColor(baseMeta);
+    if (meta && dimmedMeta !== null) meta.content = dimmedMeta;
+
+    // Inline values are what we restore; computed values are what we dim
+    // (the inline one is usually empty, with the colour coming from CSS).
+    const paint = (el: HTMLElement) => {
+      const inline = el.style.backgroundColor;
+      el.style.backgroundColor = dimColor(getComputedStyle(el).backgroundColor);
+      // Read back as the browser stores it (it normalises to rgb()), so
+      // the "unchanged since" check on restore compares like with like.
+      const applied = el.style.backgroundColor;
+      return () => {
+        if (el.style.backgroundColor === applied) el.style.backgroundColor = inline;
+      };
+    };
+    const restoreRoot = paint(root);
+    const restoreBody = paint(body);
+
     return () => {
-      if (meta.content === dimmed) meta.content = base;
+      if (meta && dimmedMeta !== null && meta.content === dimmedMeta) {
+        meta.content = baseMeta ?? "";
+      }
+      restoreRoot();
+      restoreBody();
     };
   }, [active]);
   return null;
