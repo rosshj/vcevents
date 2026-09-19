@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
+import { Radio } from "@base-ui/react/radio";
+import { RadioGroup } from "@base-ui/react/radio-group";
 import { repo } from "@/lib/repo";
 import { notifyDataChanged } from "@/lib/data-events";
 import type { House } from "@/lib/types";
@@ -95,29 +97,34 @@ function HouseForm({
       </Field>
 
       <Field label="Color">
-        <div
-          role="radiogroup"
+        <RadioGroup
+          value={color}
+          onValueChange={(c) => setColor(c as string)}
           aria-label="House color"
           className="flex flex-wrap gap-2.5"
         >
           {HOUSE_PALETTE.map((c) => (
-            <button
+            <Radio.Root
               key={c}
-              type="button"
-              role="radio"
-              aria-checked={color === c}
+              value={c}
+              nativeButton
               aria-label={`Color ${c}`}
-              onClick={() => setColor(c)}
-              className={cn(
-                "h-11 w-11 rounded-full transition-transform",
-                color === c
-                  ? "ring-2 ring-stone-900 ring-offset-2"
-                  : "hover:scale-105"
+              render={(props, state) => (
+                <button
+                  {...props}
+                  type="button"
+                  className={cn(
+                    "h-11 w-11 rounded-full transition-transform",
+                    state.checked
+                      ? "ring-2 ring-stone-900 ring-offset-2"
+                      : "hover:scale-105"
+                  )}
+                  style={{ backgroundColor: c }}
+                />
               )}
-              style={{ backgroundColor: c }}
             />
           ))}
-        </div>
+        </RadioGroup>
       </Field>
 
       <div
