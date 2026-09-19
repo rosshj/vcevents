@@ -101,6 +101,14 @@ html[data-sheet-open] body {
   outline-color: #ffffff;
 }
 
+/* Sheets focus their own popup on touch so the keyboard can't pop
+   mid-travel; that focus is programmatic and must not draw a ring around
+   the sheet (Safari sometimes treats it as :focus-visible). Unlayered
+   like the rule above, so it actually wins. */
+[data-focus-ring="none"]:focus-visible {
+  outline: none;
+}
+
 @keyframes pass-refresh {
   0% {
     opacity: 0.15;

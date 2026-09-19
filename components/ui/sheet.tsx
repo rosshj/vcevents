@@ -33,70 +33,105 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
 /** The scrim is black at this opacity; the status bar dims to match. */
 const SCRIM_OPACITY = 0.4;
 
+type RGB = [number, number, number];
+
 /**
- * A colour under a black layer of the scrim's opacity. Accepts `#rgb` /
- * `#rrggbb` (the meta, and computed custom properties, which some
- * engines shorten) and `rgb(r, g, b)`; anything else is returned untouched.
+ * Parses `#rgb` / `#rrggbb` (the meta, and computed custom properties,
+ * which some engines shorten) and `rgb(r, g, b)`. Null for anything else.
  */
-function dimColor(color: string): string {
+function parseColor(color: string): RGB | null {
   const c = color.trim();
   const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
   const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(c);
-  let channels: number[];
   if (hex) {
     const h =
       hex[1].length === 3
         ? hex[1].split("").map((d) => d + d).join("")
         : hex[1];
     const n = parseInt(h, 16);
-    channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  } else if (rgb) {
-    channels = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
-  } else {
-    return color;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
-  return `#${channels
-    .map((v) =>
-      Math.round(v * (1 - SCRIM_OPACITY))
-        .toString(16)
-        .padStart(2, "0")
-    )
-    .join("")}`;
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  return null;
 }
 
+/** A colour under a black layer of the scrim's opacity. */
+const dim = (c: RGB): RGB =>
+  c.map((v) => Math.round(v * (1 - SCRIM_OPACITY))) as RGB;
+
+const toRgb = (c: RGB) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+
 /** The screen's own chrome colour: what useThemeColor published, else white. */
-function pageBg(): string {
+function pageBg(): RGB {
   const v = getComputedStyle(document.documentElement)
     .getPropertyValue("--page-bg")
     .trim();
-  return v || "#ffffff";
+  return parseColor(v) ?? [255, 255, 255];
+}
+
+/** Same curve as the sheet's travel; keeps the chrome in step with the scrim. */
+function easeTravel(t: number) {
+  // cubic-bezier(0.32, 0.72, 0, 1), sampled numerically on x.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i += 1) {
+    const s = (lo + hi) / 2;
+    const x = 3 * (1 - s) * (1 - s) * s * 0.32 + s * s * s;
+    if (x < t) lo = s;
+    else hi = s;
+  }
+  const s = (lo + hi) / 2;
+  return 3 * (1 - s) * (1 - s) * s * 0.72 + 3 * (1 - s) * s * s + s * s * s;
 }
 
 /**
  * Dims the browser chrome while a sheet is open, so the status bar reads
- * as sitting under the scrim rather than floating above it (what Silk's
- * themeColorDimming did).
+ * as sitting under the scrim rather than floating above it.
+ *
+ * Two mechanisms, since which one iOS Safari honours has changed between
+ * versions. The theme-color meta is animated frame by frame across the
+ * sheet's travel as an `rgb()` string, which is exactly what Silk's
+ * themeColorDimming did and what a single abrupt write to it did not
+ * achieve here. And the open state is an attribute on <html> from which
+ * globals.css derives dimmed <html>/<body> backgrounds — the page's top
+ * edge, which newer Safari samples for its glass.
  *
  * Nothing is captured or restored — that raced with useThemeColor, which
- * paints the same properties for the pass and the scanner. Instead the
- * open state is an attribute on <html>; globals.css derives the dimmed
- * <html>/<body> backgrounds (what newer iOS Safari samples for its
- * glass) from --page-bg, and the theme-color meta is recomputed from the
- * same variable on both edges, whatever the screen has set it to since.
+ * paints the same properties for the pass and the scanner. Both edges
+ * recompute from --page-bg, whatever the screen has set it to since.
  */
 function ThemeColorDim({ active }: { active: boolean }) {
+  // Only transitions touch the meta. On first mount the screen owns it
+  // (useThemeColor may still be about to write it), so leave it alone.
+  const mounted = useRef(false);
   useEffect(() => {
     const root = document.documentElement;
+    if (active) root.dataset.sheetOpen = "";
+    else delete root.dataset.sheetOpen;
+
+    if (!mounted.current) {
+      mounted.current = true;
+      if (!active) return;
+    }
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]'
     );
-    if (active) {
-      root.dataset.sheetOpen = "";
-      if (meta) meta.content = dimColor(pageBg());
-    } else {
-      delete root.dataset.sheetOpen;
-      if (meta) meta.content = pageBg();
-    }
+    if (!meta) return;
+    const base = pageBg();
+    const from = parseColor(meta.content) ?? (active ? base : dim(base));
+    const to = active ? dim(base) : base;
+    const ms = 450;
+    let start: number | null = null;
+    let frame = 0;
+    const step = (now: number) => {
+      if (start === null) start = now;
+      const p = easeTravel(Math.min(1, (now - start) / ms));
+      const c = from.map((v, i) => Math.round(v + (to[i] - v) * p)) as RGB;
+      meta.setAttribute("content", toRgb(c));
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
   }, [active]);
   return null;
 }
@@ -184,6 +219,7 @@ export function BottomSheet({
             <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center touch-none">
               <Drawer.Popup
                 ref={popupRef}
+                data-focus-ring="none"
                 // Touch opens shouldn't pop the keyboard mid-travel: focus
                 // the sheet itself. Keyboard and mouse get the first field.
                 initialFocus={(type) =>
