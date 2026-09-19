@@ -1,10 +1,18 @@
 "use client";
 
+import { Field as BaseField } from "@base-ui/react/field";
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { cn } from "@/lib/utils";
 
-/** Labeled form field with an optional hint line — the app's form pattern. */
+/**
+ * Labeled form field with an optional hint line — the app's form pattern.
+ *
+ * On Base UI Field: a Base UI control inside (Input, RadioGroup, Select)
+ * is associated with the label and described by the hint automatically.
+ * `htmlFor` is still honoured for controls that aren't Base UI parts,
+ * like the date picker.
+ */
 export function Field({
   label,
   htmlFor,
@@ -17,16 +25,20 @@ export function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label
+    <BaseField.Root>
+      <BaseField.Label
         htmlFor={htmlFor}
         className="mb-1.5 block text-sm font-semibold text-stone-700"
       >
         {label}
-      </label>
+      </BaseField.Label>
       {children}
-      {hint && <p className="mt-1.5 text-xs text-stone-400">{hint}</p>}
-    </div>
+      {hint && (
+        <BaseField.Description className="mt-1.5 text-xs text-stone-400">
+          {hint}
+        </BaseField.Description>
+      )}
+    </BaseField.Root>
   );
 }
 

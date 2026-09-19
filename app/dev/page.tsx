@@ -297,15 +297,12 @@ export default function DevPage() {
               Operating as
             </p>
             <Select
-              value={session.staffId ?? ""}
-              onChange={(e) => setStaffId(e.target.value)}
-            >
-              {staffForRole.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
+              aria-label="Operating as"
+              value={session.staffId}
+              onValueChange={setStaffId}
+              items={staffForRole.map((s) => ({ value: s.id, label: s.name }))}
+              placeholder="Choose a staff member"
+            />
           </div>
         )}
       </Card>
