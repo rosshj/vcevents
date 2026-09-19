@@ -20,17 +20,24 @@ function envFlag(name: string, fallback: boolean): boolean {
 }
 
 /**
- * The Me tab's role switcher, ID-card simulator, and data reset. On for
- * previews and local work; off in production, where the tab is a plain
- * profile until real auth lands.
+ * The Me tab's role switcher, ID-card simulator, and data reset.
+ *
+ * On everywhere by default. There is no sign-in yet, so mock auth IS the
+ * auth: with this off, whoever opens the deployment is stuck as whichever
+ * identity the seed handed them, and the app can't be demonstrated at all.
+ *
+ * REVERT WHEN GOOGLE SSO LANDS — at that point roles come from the school
+ * directory and these controls have no business in production. Flip the
+ * fallback back to `process.env.VERCEL_ENV !== "production"`.
+ *
+ * Set DEV_TOOLS=0 on any deployment to turn them off ahead of that.
  */
 export const devToolsFlag = flag<boolean>({
   key: "dev-tools",
   description:
     "Show the role switcher, ID simulator, and reset-data controls on the Me tab.",
-  defaultValue: false,
-  decide: () =>
-    envFlag("DEV_TOOLS", process.env.VERCEL_ENV !== "production"),
+  defaultValue: true,
+  decide: () => envFlag("DEV_TOOLS", true),
 });
 
 /** Every flag the app reads, in one place. */
