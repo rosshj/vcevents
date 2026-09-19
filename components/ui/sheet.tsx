@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Drawer } from "@base-ui/react/drawer";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,45 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
   return <Drawer.Provider>{children}</Drawer.Provider>;
 }
 
+/** The scrim is black at this opacity; the status bar dims to match. */
+const SCRIM_OPACITY = 0.4;
+
+/** `#rrggbb` under a black layer of the scrim's opacity. */
+function dimHex(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const channel = (shift: number) =>
+    Math.round(((n >> shift) & 255) * (1 - SCRIM_OPACITY))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
+/**
+ * Dims the browser chrome while a sheet is open, so the status bar reads
+ * as sitting under the scrim rather than floating above it (what Silk's
+ * themeColorDimming did). Whatever theme-color the screen set — white,
+ * a house colour on the pass — is darkened in place and restored on
+ * close, unless the screen changed it in the meantime.
+ */
+function ThemeColorDim({ active }: { active: boolean }) {
+  useEffect(() => {
+    if (!active) return;
+    const meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]'
+    );
+    if (!meta) return;
+    const base = meta.content;
+    const dimmed = dimHex(base);
+    meta.content = dimmed;
+    return () => {
+      if (meta.content === dimmed) meta.content = base;
+    };
+  }, [active]);
+  return null;
+}
+
 /**
  * Wrap the page content once; it scales back and rounds off behind
  * whichever sheet is open — iOS's modal "depth" treatment. During a
@@ -53,9 +92,13 @@ export function SheetDepthOutlet({ children }: { children: React.ReactNode }) {
         "data-active:[transform:scale(calc(0.94+0.06*var(--sheet-progress)))]",
         "data-active:[clip-path:inset(0px_round_calc(28px*(1-var(--sheet-progress))))]"
       )}
-    >
-      {children}
-    </Drawer.Indent>
+      render={(props, state) => (
+        <div {...props}>
+          <ThemeColorDim active={state.active} />
+          {children}
+        </div>
+      )}
+    />
   );
 }
 

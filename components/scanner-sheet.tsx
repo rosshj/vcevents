@@ -63,6 +63,36 @@ const BAR_SNAP_FALLBACK = 146;
 /** Shared curve for the surface morph and the drawer's own travel. */
 const EASE = "cubic-bezier(0.32,0.72,0,1)";
 
+/** How long the drawer takes to travel between snap points. */
+const TRAVEL_MS = 450;
+
+/**
+ * 0 at the docked bar, 1 at full height, read off the popup's own
+ * position: the drawer publishes its translation as CSS variables, and
+ * tan(atan2(y, x)) turns the two lengths into a plain ratio. Everything
+ * that morphs — surface shape, colour, content crossfades — derives from
+ * this, so it follows the finger mid-swipe and the drawer's own
+ * transition when snapping.
+ */
+const PROGRESS_VARS = {
+  "--ty": "calc(var(--drawer-snap-point-offset) + var(--drawer-swipe-movement-y))",
+  "--p": "clamp(0, calc(1 - tan(atan2(var(--ty), var(--bar-offset)))), 1)",
+} as React.CSSProperties;
+
+/** Stays true for `ms` after `value` turns false — long enough to fade out. */
+function useLinger(value: boolean, ms: number): boolean {
+  const [linger, setLinger] = useState(value);
+  // Adjusted during render, the documented pattern for deriving from a
+  // changed prop; the effect only schedules the release.
+  if (value && !linger) setLinger(true);
+  useEffect(() => {
+    if (value) return;
+    const t = setTimeout(() => setLinger(false), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return linger;
+}
+
 const RESULT_CAP = 60;
 
 type ScanMode = "scan" | "search";
@@ -308,10 +338,10 @@ function ScannerThemeColor() {
 
 /**
  * The persistent scanner UI: a two-snap-point drawer whose popup is a
- * transparent, phone-width column. Inside it, one dark surface is the
- * docked pill at rest and the full sheet while expanded or mid-swipe —
- * so a drag lifts the whole sheet out from behind the bar rather than
- * dragging a pill around. Content layers crossfade over it.
+ * transparent, phone-width column. Inside it, one dark surface morphs
+ * continuously between the docked pill and the full sheet as a function
+ * of the popup's position (`--p`), and the bar/sheet content layers
+ * crossfade over it on the same progress.
  */
 function ScannerDrawer({
   open,
@@ -351,12 +381,14 @@ function ScannerDrawer({
   // popup would re-anchor a fixed probe), and re-read on viewport changes
   // — iOS reports some only on visualViewport.
   const probeRef = useRef<HTMLDivElement>(null);
-  const [barSnap, setBarSnap] = useState(BAR_SNAP_FALLBACK);
+  const [bar, setBar] = useState({ snap: BAR_SNAP_FALLBACK, top: 0 });
+  const barSnap = bar.snap;
   const measure = useCallback(() => {
     const probe = probeRef.current;
     if (!probe) return;
-    const px = window.innerHeight - probe.getBoundingClientRect().top;
-    if (px > 0) setBarSnap(Math.round(px));
+    const top = probe.getBoundingClientRect().top;
+    const px = window.innerHeight - top;
+    if (px > 0) setBar({ snap: Math.round(px), top: Math.round(top) });
   }, []);
   useEffect(() => {
     measure();
@@ -387,6 +419,10 @@ function ScannerDrawer({
     if (point === 1) onExpand();
     else onCollapse();
   };
+
+  // The sheet body outlives `expanded` by one fade so it doesn't vanish
+  // from a still-full surface; the camera stops when it unmounts.
+  const sheetMounted = useLinger(expanded, 150);
 
   return (
     <>
@@ -423,17 +459,25 @@ function ScannerDrawer({
                 initialFocus={false}
                 finalFocus={false}
                 render={(props, state) => {
-                  // Expanded or mid-swipe, the surface is the sheet; at
-                  // rest on the bar snap point it's the pill.
-                  const sheet = state.expanded || state.swiping;
+                  // Mid-swipe every morphing property snaps to `--p` each
+                  // frame; between snap points it eases on the drawer's
+                  // own clock, so shape and travel stay in step.
+                  const travel = state.swiping
+                    ? "duration-0 delay-0"
+                    : `duration-[${TRAVEL_MS}ms]`;
                   return (
                     <div
                       {...props}
                       data-dark-surface
+                      style={{
+                        ...props.style,
+                        ...PROGRESS_VARS,
+                        "--bar-offset": `${bar.top}px`,
+                      } as React.CSSProperties}
                       className={cn(
                         "pointer-events-none relative h-full w-full max-w-[480px] text-white outline-none",
                         "[transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))]",
-                        `transition-transform duration-[450ms] ease-[${EASE}]`,
+                        `transition-transform duration-[${TRAVEL_MS}ms] ease-[${EASE}]`,
                         "data-starting-style:[transform:translateY(100%)]",
                         "data-ending-style:[transform:translateY(100%)] data-ending-style:duration-300"
                       )}
@@ -443,31 +487,49 @@ function ScannerDrawer({
                       )}
                       <Drawer.Title className="sr-only">Check-in</Drawer.Title>
 
-                      {/* The dark surface. */}
+                      {/* The dark surface: pill at --p 0, sheet at 1. Corners
+                          grow with it (native sheets keep device-radius
+                          corners at full screen) rather than flattening. */}
                       <div
                         onClick={expanded ? undefined : onExpand}
                         className={cn(
                           "pointer-events-auto absolute top-0 shadow-float touch-none",
-                          `transition-[inset,height,border-radius,background-color] duration-[350ms] ease-[${EASE}]`,
-                          sheet
-                            ? "inset-x-0 h-full rounded-[48px] bg-stone-950"
-                            : "inset-x-4 h-14 rounded-[20px] bg-stone-900"
+                          `transition-[left,right,height,border-radius,background-color] ease-[${EASE}]`,
+                          travel
                         )}
+                        style={{
+                          left: "calc(1rem * (1 - var(--p)))",
+                          right: "calc(1rem * (1 - var(--p)))",
+                          height: "calc(3.5rem + (100% - 3.5rem) * var(--p))",
+                          borderRadius: "calc(20px + 28px * var(--p))",
+                          backgroundColor:
+                            "color-mix(in srgb, #0c0a09 calc(var(--p) * 100%), #1c1917)",
+                        }}
                       />
 
-                      {/* Content layers ride the surface and crossfade. */}
                       {event && (
-                        <AnimatePresence initial={false}>
-                          {expanded ? (
-                            <motion.div
-                              key="sheet-content"
-                              initial={{ opacity: 0 }}
-                              animate={{
-                                opacity: 1,
-                                transition: { duration: 0.15, delay: 0.1 },
-                              }}
-                              exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                              className="pointer-events-auto absolute inset-0 flex flex-col touch-none"
+                        <>
+                          {/* Sheet body: fades in over the last stretch of
+                              the rise, lingers one fade after collapse. */}
+                          {sheetMounted && (
+                            <div
+                              className={cn(
+                                "pointer-events-auto absolute inset-0 flex flex-col touch-none",
+                                // Mounts at 0 (@starting-style) so the first
+                                // paint transitions in rather than appearing.
+                                "opacity-(--sheet-opacity) starting:opacity-0",
+                                `transition-opacity ease-[${EASE}]`,
+                                state.swiping
+                                  ? "duration-0 delay-0"
+                                  : expanded
+                                    ? "duration-200 delay-[250ms]"
+                                    : "duration-150 delay-0"
+                              )}
+                              style={{
+                                "--sheet-opacity": expanded
+                                  ? "clamp(0, calc((var(--p) - 0.55) / 0.4), 1)"
+                                  : "0",
+                              } as React.CSSProperties}
                             >
                               <SheetContent
                                 event={event}
@@ -481,58 +543,66 @@ function ScannerDrawer({
                                 onUndoLast={onUndoLast}
                                 onCollapse={onCollapse}
                               />
-                            </motion.div>
-                          ) : (
-                            <motion.div
-                              key="bar-content"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1, transition: { duration: 0.15 } }}
-                              exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                              className={cn(
-                                "pointer-events-auto absolute inset-x-4 top-0 flex h-14 items-center gap-2 pl-4 pr-2 touch-none",
-                                // The pill is gone mid-swipe; so is its label.
-                                state.swiping && "opacity-0"
-                              )}
-                            >
-                              <button
-                                onClick={onExpand}
-                                aria-label={
-                                  operating ? "Expand scanner" : "Start scanning"
-                                }
-                                className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
-                              >
-                                {operating ? (
-                                  <span className="relative flex h-2.5 w-2.5 shrink-0">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-stone-500" />
-                                )}
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-semibold leading-tight">
-                                    {event.name}
-                                  </span>
-                                  <span className="block text-[11px] leading-tight text-white/60">
-                                    {operating
-                                      ? `Scanning · ${tally ?? "–"} checked in`
-                                      : "Ready to scan · tap to start"}
-                                  </span>
-                                </span>
-                                <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
-                              </button>
-                              {operating && (
-                                <button
-                                  onClick={onStop}
-                                  aria-label="Stop operating this event"
-                                  className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
-                                >
-                                  Stop
-                                </button>
-                              )}
-                            </motion.div>
+                            </div>
                           )}
-                        </AnimatePresence>
+
+                          {/* Bar label: gone by a third of the rise, back
+                              once the pill has re-formed. Inert while the
+                              sheet is up so it's out of the tab order. */}
+                          <div
+                            inert={expanded}
+                            className={cn(
+                              "absolute inset-x-4 top-0 flex h-14 items-center gap-2 pl-4 pr-2 touch-none",
+                              expanded ? "pointer-events-none" : "pointer-events-auto",
+                              `transition-opacity ease-[${EASE}]`,
+                              state.swiping
+                                ? "duration-0 delay-0"
+                                : expanded
+                                  ? "duration-150 delay-0"
+                                  : "duration-150 delay-[280ms]"
+                            )}
+                            style={{
+                              opacity: "clamp(0, calc(1 - var(--p) / 0.35), 1)",
+                            }}
+                          >
+                            <button
+                              onClick={onExpand}
+                              aria-label={
+                                operating ? "Expand scanner" : "Start scanning"
+                              }
+                              className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
+                            >
+                              {operating ? (
+                                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-stone-500" />
+                              )}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold leading-tight">
+                                  {event.name}
+                                </span>
+                                <span className="block text-[11px] leading-tight text-white/60">
+                                  {operating
+                                    ? `Scanning · ${tally ?? "–"} checked in`
+                                    : "Ready to scan · tap to start"}
+                                </span>
+                              </span>
+                              <ChevronUp className="h-4 w-4 shrink-0 text-white/50" />
+                            </button>
+                            {operating && (
+                              <button
+                                onClick={onStop}
+                                aria-label="Stop operating this event"
+                                className="shrink-0 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/20"
+                              >
+                                Stop
+                              </button>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   );
